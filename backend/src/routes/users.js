@@ -1,0 +1,143 @@
+const express = require('express');
+const router = express.Router();
+const bcrypt = require('bcryptjs');
+const { getDb } = require('../database');
+const { authMiddleware, adminOnly } = require('../middleware/auth');
+const multer = require('multer');
+const path = require('path');
+
+const profileStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, path.join(__dirname, '../../uploads/profiles')),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `profile_${req.user.id}_${Date.now()}${ext}`);
+  }
+});
+const uploadProfile = multer({ storage: profileStorage, limits: { fileSize: 5 * 1024 * 1024 } });
+
+function uniqueJdId(db) {
+  let id, exists;
+  do {
+    const nums = Math.floor(100000 + Math.random() * 900000).toString();
+    id = 'JD' + nums;
+    exists = db.prepare('SELECT id FROM users WHERE jd_id = ?').get(id);
+  } while (exists);
+  return id;
+}
+
+// GET /api/users/me - must come before /:id
+router.get('/me', authMiddleware, (req, res) => {
+  const db = getDb();
+  const user = db.prepare('SELECT id, jd_id, name, role, email, phone, photo_url, active, permissions FROM users WHERE id=?').get(req.user.id);
+  if (user && user.permissions) {
+    try { user.permissions = JSON.parse(user.permissions); } catch { user.permissions = null; }
+  }
+  res.json(user);
+});
+
+router.put('/me/profile', authMiddleware, (req, res) => {
+  const db = getDb();
+  const { email, phone } = req.body;
+  db.prepare('UPDATE users SET email=?, phone=? WHERE id=?').run(email || null, phone || null, req.user.id);
+  res.json({ message: 'Perfil atualizado' });
+});
+
+router.put('/me/password', authMiddleware, (req, res) => {
+  const db = getDb();
+  const { current_password, new_password } = req.body;
+  const pw = db.prepare('SELECT hash FROM passwords WHERE user_id=?').get(req.user.id);
+  if (!bcrypt.compareSync(current_password, pw.hash)) return res.status(400).json({ error: 'Senha atual incorreta' });
+  const hash = bcrypt.hashSync(new_password, 10);
+  db.prepare('UPDATE passwords SET hash=? WHERE user_id=?').run(hash, req.user.id);
+  res.json({ message: 'Senha alterada' });
+});
+
+router.post('/me/photo', authMiddleware, uploadProfile.single('photo'), (req, res) => {
+  const db = getDb();
+  if (!req.file) return res.status(400).json({ error: 'Arquivo obrigatório' });
+  const url = `/uploads/profiles/${req.file.filename}`;
+  db.prepare('UPDATE users SET photo_url=? WHERE id=?').run(url, req.user.id);
+  res.json({ photo_url: url });
+});
+
+router.get('/me/stats', authMiddleware, (req, res) => {
+  const db = getDb();
+  const role = req.user.role;
+  let clients = [], orders = [];
+  if (role === 'vendedor') {
+    clients = db.prepare('SELECT * FROM clients WHERE seller_id=? ORDER BY created_at DESC').all(req.user.id);
+    orders = db.prepare(`SELECT so.*, c.name as client_name, p.name as plan_name FROM service_orders so
+      JOIN clients c ON c.id=so.client_id JOIN plans p ON p.id=so.plan_id
+      WHERE so.seller_id=? ORDER BY so.created_at DESC`).all(req.user.id);
+  } else if (role === 'tecnico') {
+    orders = db.prepare(`SELECT so.*, c.name as client_name, p.name as plan_name FROM service_orders so
+      JOIN clients c ON c.id=so.client_id JOIN plans p ON p.id=so.plan_id
+      WHERE so.technician_id=? ORDER BY so.created_at DESC`).all(req.user.id);
+  } else {
+    clients = db.prepare('SELECT * FROM clients ORDER BY created_at DESC LIMIT 10').all();
+    orders = db.prepare(`SELECT so.*, c.name as client_name FROM service_orders so
+      JOIN clients c ON c.id=so.client_id ORDER BY so.created_at DESC LIMIT 10`).all();
+  }
+  res.json({ clients, orders });
+});
+
+// GET /api/users - admin only
+router.get('/', authMiddleware, adminOnly, (req, res) => {
+  const db = getDb();
+  const users = db.prepare('SELECT id, jd_id, name, role, email, phone, photo_url, active, permissions, created_at FROM users ORDER BY name').all();
+  res.json(users.map(u => ({
+    ...u,
+    permissions: u.permissions ? (() => { try { return JSON.parse(u.permissions); } catch { return null; } })() : null
+  })));
+});
+
+// POST /api/users
+router.post('/', authMiddleware, adminOnly, (req, res) => {
+  const db = getDb();
+  const { name, role, password } = req.body;
+  if (!name || !role) return res.status(400).json({ error: 'Nome e função obrigatórios' });
+  if (!['admin','vendedor','tecnico'].includes(role)) return res.status(400).json({ error: 'Função inválida' });
+
+  const jd_id = uniqueJdId(db);
+  const hash = bcrypt.hashSync(password || 'jd1234', 10);
+
+  const info = db.prepare('INSERT INTO users (jd_id, name, role) VALUES (?, ?, ?)').run(jd_id, name, role);
+  db.prepare('INSERT INTO passwords (user_id, hash) VALUES (?, ?)').run(info.lastInsertRowid, hash);
+
+  res.json({ id: info.lastInsertRowid, jd_id, name, role, message: `ID: ${jd_id} | Senha: ${password || 'jd1234'}` });
+});
+
+// PUT /api/users/:id
+router.put('/:id', authMiddleware, adminOnly, (req, res) => {
+  const db = getDb();
+  const { name, role, active } = req.body;
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+  db.prepare('UPDATE users SET name=?, role=?, active=? WHERE id=?')
+    .run(name || user.name, role || user.role, active !== undefined ? active : user.active, req.params.id);
+  res.json({ message: 'Atualizado' });
+});
+
+// PUT /api/users/:id/permissions - admin sets custom permissions for a user
+router.put('/:id/permissions', authMiddleware, adminOnly, (req, res) => {
+  const db = getDb();
+  const user = db.prepare('SELECT * FROM users WHERE id=?').get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+  const { permissions } = req.body;
+  const permJson = permissions ? JSON.stringify(permissions) : null;
+  db.prepare('UPDATE users SET permissions=? WHERE id=?').run(permJson, req.params.id);
+  res.json({ message: 'Permissões atualizadas' });
+});
+
+// DELETE /api/users/:id - exclui permanentemente
+router.delete('/:id', authMiddleware, adminOnly, (req, res) => {
+  const db = getDb();
+  const user = db.prepare('SELECT * FROM users WHERE id=?').get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+  if (user.jd_id === 'JD000001') return res.status(400).json({ error: 'Não é possível excluir o administrador principal' });
+  db.prepare('DELETE FROM passwords WHERE user_id=?').run(req.params.id);
+  db.prepare('DELETE FROM users WHERE id=?').run(req.params.id);
+  res.json({ message: `Usuário ${user.name} excluído permanentemente` });
+});
+
+module.exports = router;

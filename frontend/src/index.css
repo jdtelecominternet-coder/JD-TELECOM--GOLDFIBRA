@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Dark theme (default) ────────────────────────────────────────────────── */
+:root, [data-theme="dark"] {
+  --bg-main:        #030712;
+  --bg-card:        #111827;
+  --bg-sidebar:     #111827;
+  --bg-input:       #1f2937;
+  --border:         #1f2937;
+  --border-sidebar: #1f2937;
+  --text-primary:   #f9fafb;
+  --text-secondary: #9ca3af;
+  --text-muted:     #4b5563;
+  --sidebar-text:   #d1d5db;
+  --sidebar-active-bg: rgba(59,130,246,0.15);
+  --sidebar-active-text: #93c5fd;
+  --sidebar-active-border: rgba(59,130,246,0.3);
+  --accent:         #3b82f6;
+  --accent-hover:   #2563eb;
+  --accent-text:    #ffffff;
+  --accent-light:   rgba(59,130,246,0.15);
+  --table-header:   #1f2937;
+  --table-hover:    rgba(255,255,255,0.03);
+  --badge-bg:       #1f2937;
+  --scrollbar:      #374151;
+}
+
+/* ─── Light theme ─────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-main:        #f1f5f9;
+  --bg-card:        #ffffff;
+  --bg-sidebar:     #1e3a5f;
+  --bg-input:       #f8fafc;
+  --border:         #e2e8f0;
+  --border-sidebar: rgba(255,255,255,0.1);
+  --text-primary:   #0f172a;
+  --text-secondary: #475569;
+  --text-muted:     #94a3b8;
+  --sidebar-text:   #e2e8f0;
+  --sidebar-active-bg: rgba(255,255,255,0.15);
+  --sidebar-active-text: #ffffff;
+  --sidebar-active-border: rgba(255,255,255,0.4);
+  --accent:         #1d4ed8;
+  --accent-hover:   #1e40af;
+  --accent-text:    #ffffff;
+  --accent-light:   rgba(29,78,216,0.1);
+  --table-header:   #f8fafc;
+  --table-hover:    #f1f5f9;
+  --badge-bg:       #f1f5f9;
+  --scrollbar:      #cbd5e1;
+}
+
+/* ─── Base ─────────────────────────────────────────────────────────────────── */
+@layer base {
+  body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    @apply font-sans antialiased;
+  }
+  * { @apply box-border; }
+}
+
+/* ─── Components ───────────────────────────────────────────────────────────── */
+@layer components {
+  .btn-primary {
+    background-color: var(--accent);
+    color: var(--accent-text);
+    @apply font-bold px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary:hover:not(:disabled) { background-color: var(--accent-hover); }
+
+  .btn-secondary {
+    background-color: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    @apply font-semibold px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2;
+  }
+  .btn-secondary:hover { filter: brightness(0.95); }
+
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-500 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2;
+  }
+
+  .card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    @apply rounded-xl p-5;
+  }
+
+  .input {
+    background-color: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    @apply rounded-lg px-3 py-2 w-full focus:outline-none transition-colors;
+  }
+  .input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .input::placeholder { color: var(--text-muted); }
+
+  .label {
+    color: var(--text-secondary);
+    @apply block text-sm font-medium mb-1;
+  }
+
+  /* Status badges */
+  .badge-pendente    { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-500/15 text-yellow-500 border border-yellow-500/30; }
+  .badge-ativo       { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500/15 text-green-500 border border-green-500/30; }
+  .badge-cancelado   { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-500 border border-red-500/30; }
+  .badge-em_deslocamento { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/15 text-blue-500 border border-blue-500/30; }
+  .badge-em_execucao { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-500/15 text-purple-500 border border-purple-500/30; }
+  .badge-finalizado  { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500/15 text-green-500 border border-green-500/30; }
+
+  .table-header {
+    text-align: left;
+    background-color: var(--table-header);
+    color: var(--text-secondary);
+    @apply text-xs font-semibold uppercase tracking-wider px-4 py-3;
+  }
+  .table-cell { color: var(--text-secondary); @apply px-4 py-3 text-sm; }
+
+  .sidebar-item {
+    color: var(--sidebar-text);
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 cursor-pointer text-sm font-medium;
+  }
+  .sidebar-item:hover { background-color: rgba(255,255,255,0.08); color: #fff; }
+  .sidebar-item.active {
+    background-color: var(--sidebar-active-bg);
+    color: var(--sidebar-active-text);
+    border: 1px solid var(--sidebar-active-border);
+  }
+
+  .modal-overlay { @apply fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4; }
+  .modal-box {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    @apply rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl;
+  }
+}
+
+/* ─── Font size ──────────────────────────────────────────────────────────────── */
+[data-fontsize="normal"]  { font-size: 14px; }
+[data-fontsize="large"]   { font-size: 16px; }
+[data-fontsize="xlarge"]  { font-size: 18px; }
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background-color: var(--bg-main); }
+::-webkit-scrollbar-thumb { background-color: var(--scrollbar); border-radius: 9999px; }
