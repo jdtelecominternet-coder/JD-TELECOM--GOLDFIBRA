@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # JD TELECOM - GOLD FIBRA
 ## Sistema de Gestão de Vendas e Instalações
 
@@ -83,3 +84,7 @@ O sistema abrirá automaticamente no navegador.
 - **Auth:** JWT
 - **PDF:** jsPDF + AutoTable
 - **CEP:** ViaCEP API
+=======
+# JD-TELECOM--GOLDFIBRA
+Sistema de Gestão de Vendas e Instalações de Internet - JD TELECOM GOLD FIBRA
+>>>>>>> f0742e0ed15091fb70f2862f11588a13ea486f84
