@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useChat } from '../contexts/ChatContext';
 import api from '../services/api';
-import { MessageCircle, Send, Circle, Search, ArrowLeft } from 'lucide-react';
-
+import toast from 'react-hot-toast';
+import { MessageCircle, Send, Circle, Search, ArrowLeft, Camera, Mic, MicOff, X } from 'lucide-react';
 function Avatar({ user, size = 'sm', online }) {
   const s = size === 'sm' ? 'w-9 h-9 text-sm' : 'w-11 h-11 text-base';
   return (
@@ -30,11 +30,15 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [mobileView, setMobileView] = useState('list'); // 'list' | 'chat'
+  const [mobileView, setMobileView] = useState('list');
   const typingTimer = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
-
+  const [recording, setRecording] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const mediaRecRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const photoInputRef = useRef(null);
   async function loadContacts() {
     try {
       const r = await api.get('/chat/contacts');
@@ -46,7 +50,7 @@ export default function Chat() {
   async function selectContact(contact) {
     setSelected(contact);
     setMobileView('chat');
-    setActiveConv(contact.id); // marca conversa como ativa para suprimir toast
+    setActiveConv(contact.id);
     try {
       const r = await api.get(`/chat/history/${contact.id}`);
       loadHistory(contact.id, r.data);
@@ -56,17 +60,9 @@ export default function Chat() {
     inputRef.current?.focus();
   }
 
-  // Ao desmontar ou fechar conversa, limpar conversa ativa
-  useEffect(() => {
-    return () => setActiveConv(null);
-  }, []);
-
+  useEffect(() => { return () => setActiveConv(null); }, []);
   useEffect(() => { loadContacts(); }, []);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [selected, messages]);
-
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [selected, messages]);
   useEffect(() => {
     if (!selected) return;
     const msgs = messages[selected.id] || [];
@@ -76,7 +72,54 @@ export default function Chat() {
       setContacts(prev => prev.map(c => c.id === selected.id ? { ...c, unread: 0 } : c));
     }
   }, [messages]);
+  async function sendMedia(file, type) {
+    if (!selected) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await api.post('/chat/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      sendMessage(selected.id, '', r.data.media_url, r.data.media_type);
+    } catch { toast.error('Erro ao enviar arquivo'); }
+    finally { setUploading(false); }
+  }
 
+  async function startRecording() {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        toast.error('Gravacao de audio nao suportada neste navegador');
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Detectar formato suportado
+      const mimeType = ['audio/webm;codecs=opus','audio/webm','audio/ogg','audio/mp4','audio/aac']
+        .find(t => MediaRecorder.isTypeSupported(t)) || '';
+      const ext = mimeType.includes('mp4') || mimeType.includes('aac') ? 'mp4'
+        : mimeType.includes('ogg') ? 'ogg' : 'webm';
+      const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      rec.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      rec.onstop = () => {
+        const type = rec.mimeType || mimeType || 'audio/webm';
+        const blob = new Blob(audioChunksRef.current, { type });
+        const file = new File([blob], `audio.${ext}`, { type });
+        sendMedia(file, 'audio');
+        stream.getTracks().forEach(t => t.stop());
+      };
+      rec.start(100); // coleta chunks a cada 100ms
+      mediaRecRef.current = rec;
+      setRecording(true);
+    } catch (err) {
+      toast.error('Microfone: ' + (err.message || 'sem permissao'));
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecRef.current && mediaRecRef.current.state !== 'inactive') {
+      mediaRecRef.current.stop();
+    }
+    setRecording(false);
+  }
   function handleSend() {
     if (!input.trim() || !selected) return;
     sendMessage(selected.id, input.trim());
@@ -97,15 +140,13 @@ export default function Chat() {
   const filteredContacts = contacts.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) || c.jd_id.includes(search)
   );
-
-  const roleLabel = { admin: 'Administrador', tecnico: 'Técnico' };
+  const roleLabel = { admin: 'Administrador', tecnico: 'Tecnico', vendedor: 'Vendedor', manutencao: 'Téc. de Rede' };
 
   function formatTime(ts) {
     const d = new Date(ts);
     const today = new Date();
-    if (d.toDateString() === today.toDateString()) {
+    if (d.toDateString() === today.toDateString())
       return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    }
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' +
       d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }
@@ -124,10 +165,9 @@ export default function Chat() {
   return (
     <div className="h-[calc(100vh-9rem)] flex gap-0 rounded-2xl overflow-hidden"
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-      {/* Contacts list */}
+      {/* Contacts */}
       <div className={`flex flex-col w-full md:w-80 flex-shrink-0 ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}
         style={{ borderRight: '1px solid var(--border)', background: 'var(--bg-card)' }}>
-        {/* Header */}
         <div className="p-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center gap-2 mb-3">
             <MessageCircle className="w-5 h-5" style={{ color: 'var(--accent)' }} />
@@ -135,13 +175,10 @@ export default function Chat() {
           </div>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar contato..."
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar contato..."
               className="input pl-9 text-sm py-1.5" />
           </div>
         </div>
-
-        {/* Contacts */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex justify-center py-8">
@@ -149,52 +186,46 @@ export default function Chat() {
             </div>
           ) : filteredContacts.length === 0 ? (
             <div className="text-center py-8 text-sm px-4" style={{ color: 'var(--text-muted)' }}>
-              {user.role === 'tecnico' ? 'Nenhum administrador disponível' : 'Nenhum técnico cadastrado'}
+              {user.role === 'admin' ? 'Nenhum tecnico, vendedor ou técnico de rede cadastrado' : 'Nenhum administrador disponivel'}
             </div>
-          ) : (
-            filteredContacts.map(c => {
-              const online = isOnline(c.id);
-              const lastMsg = (messages[c.id] || []).slice(-1)[0];
-              const isTypingNow = typing[c.id];
-              const isActive = selected?.id === c.id;
-
-              return (
-                <button key={c.id} onClick={() => selectContact(c)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
-                  style={{
-                    borderBottom: '1px solid var(--border)',
-                    background: isActive ? 'var(--bg-input)' : 'transparent'
-                  }}>
-                  <Avatar user={c} online={online} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{c.name}</p>
-                      {lastMsg && <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{formatTime(lastMsg.created_at)}</span>}
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                        {isTypingNow
-                          ? <span style={{ color: '#4ade80' }} className="italic">digitando...</span>
-                          : lastMsg
-                            ? (lastMsg.sender_id === user.id ? 'Você: ' : '') + lastMsg.message
-                            : <span className="italic">{roleLabel[c.role]} • {c.jd_id}</span>}
-                      </p>
-                      {(c.unread > 0 || (unreadByUser[c.id] || 0) > 0) && (
-                        <span className="text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center flex-shrink-0"
-                          style={{ background: '#ef4444', color: '#fff' }}>
-                          {(c.unread || 0) + (unreadByUser[c.id] || 0)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <Circle className="w-2 h-2 flex-shrink-0" style={{ fill: online ? '#4ade80' : 'var(--text-muted)', color: online ? '#4ade80' : 'var(--text-muted)' }} />
-                      <span className="text-xs" style={{ color: online ? '#4ade80' : 'var(--text-muted)' }}>{online ? 'Online' : 'Offline'}</span>
-                    </div>
+          ) : filteredContacts.map(c => {
+            const online = isOnline(c.id);
+            const lastMsg = (messages[c.id] || []).slice(-1)[0];
+            const isTypingNow = typing[c.id];
+            const isActive = selected?.id === c.id;
+            return (
+              <button key={c.id} onClick={() => selectContact(c)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
+                style={{ borderBottom: '1px solid var(--border)', background: isActive ? 'var(--bg-input)' : 'transparent' }}>
+                <Avatar user={c} online={online} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{c.name}</p>
+                    {lastMsg && <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{formatTime(lastMsg.created_at)}</span>}
                   </div>
-                </button>
-              );
-            })
-          )}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                      {isTypingNow
+                        ? <span style={{ color: '#4ade80' }} className="italic">digitando...</span>
+                        : lastMsg
+                          ? (lastMsg.sender_id === user.id ? 'Você: ' : '') + (lastMsg.media_type === 'image' ? '📷 Foto' : lastMsg.media_type === 'audio' ? '🎙️ Audio' : lastMsg.message)
+                          : <span className="italic">{roleLabel[c.role]} • {c.jd_id}</span>}
+                    </p>
+                    {(c.unread > 0 || (unreadByUser[c.id] || 0) > 0) && (
+                      <span className="text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center flex-shrink-0"
+                        style={{ background: '#ef4444', color: '#fff' }}>
+                        {(c.unread || 0) + (unreadByUser[c.id] || 0)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <Circle className="w-2 h-2 flex-shrink-0" style={{ fill: online ? '#4ade80' : 'var(--text-muted)', color: online ? '#4ade80' : 'var(--text-muted)' }} />
+                    <span className="text-xs" style={{ color: online ? '#4ade80' : 'var(--text-muted)' }}>{online ? 'Online' : 'Offline'}</span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -208,19 +239,14 @@ export default function Chat() {
             </div>
             <p className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>Selecione uma conversa</p>
             <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-              {user.role === 'tecnico'
-                ? 'Escolha um administrador para iniciar o chat'
-                : 'Escolha um técnico para conversar'}
+              {user.role === 'admin' ? 'Escolha um tecnico ou vendedor para conversar' : 'Escolha um administrador para iniciar o chat'}
             </p>
           </div>
         ) : (
           <>
-            {/* Chat header */}
             <div className="px-4 py-3 flex items-center gap-3 flex-shrink-0"
               style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
-              <button onClick={() => setMobileView('list')}
-                className="md:hidden p-1.5 rounded-lg transition-colors"
-                style={{ color: 'var(--text-muted)' }}>
+              <button onClick={() => setMobileView('list')} className="md:hidden p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}>
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <Avatar user={selected} size="md" online={isOnline(selected.id)} />
@@ -237,7 +263,6 @@ export default function Chat() {
               </div>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-1">
               {convMessages.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center h-full text-sm text-center">
@@ -262,23 +287,41 @@ export default function Chat() {
                   return (
                     <div key={item.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-1`}>
                       <div className={`max-w-[75%] ${isMine ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
-                        <div className="px-3 py-2 rounded-2xl text-sm leading-relaxed break-words"
+                        <div className="rounded-2xl overflow-hidden"
                           style={isMine
-                            ? { background: 'var(--accent)', color: 'var(--bg-main)', fontWeight: 500, borderBottomRightRadius: '4px' }
-                            : { background: 'var(--bg-input)', color: 'var(--text-primary)', borderBottomLeftRadius: '4px' }}>
-                          {item.message}
+                            ? { background: item.media_type ? 'transparent' : 'var(--accent)', borderBottomRightRadius: '4px' }
+                            : { background: item.media_type ? 'transparent' : 'var(--bg-input)', borderBottomLeftRadius: '4px' }}>
+                          {item.media_type === 'image' ? (
+                            <a href={item.media_url} target="_blank" rel="noreferrer">
+                              <img src={item.media_url} alt="foto" className="max-w-full max-h-60 object-cover rounded-2xl" />
+                            </a>
+                          ) : item.media_type === 'audio' ? (
+                            <audio controls src={item.media_url} className="max-w-full" style={{minWidth:'200px'}} />
+                          ) : (
+                            <div className="px-3 py-2 text-sm leading-relaxed break-words"
+                              style={isMine ? {color:'var(--bg-main)',fontWeight:500} : {color:'var(--text-primary)'}}>
+                              {item.message}
+                            </div>
+                          )}
                         </div>
-                        <span className="text-xs px-1" style={{ color: 'var(--text-muted)' }}>{formatTime(item.created_at)}</span>
+                        <span className="text-xs px-1 flex items-center gap-0.5" style={{ color: 'var(--text-muted)' }}>
+                          {formatTime(item.created_at)}
+                          {isMine && (
+                            <span style={{ color: item.read_at ? '#4ade80' : 'var(--text-muted)', fontSize: '10px', lineHeight: 1, fontWeight: 700 }}>
+                              {item.read_at ? '✓✓' : '✓'}
+                            </span>
+                          )}
+                        </span>
                       </div>
                     </div>
-                  );
-                })
+                  );                })
               )}
               <div ref={bottomRef} />
             </div>
-
             {/* Input */}
             <div className="px-4 py-3 flex items-end gap-2 flex-shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
+              {/* Foto */}
+              {/* Texto */}
               <div className="flex-1 rounded-2xl px-4 py-2 transition-colors"
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
                 <textarea
@@ -294,13 +337,17 @@ export default function Chat() {
                   style={{ fieldSizing: 'content', color: 'var(--text-primary)', caretColor: 'var(--accent)' }}
                 />
               </div>
-              <button onClick={handleSend} disabled={!input.trim()}
-                className="w-10 h-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: 'var(--accent)' }}>
-                <Send className="w-4 h-4" style={{ color: 'var(--bg-main)' }} />
+
+              {/* Audio */}
+
+              {/* Enviar texto */}
+              <button onClick={handleSend} disabled={!input.trim() || uploading}
+                className="w-10 h-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
+                style={{ background: input.trim() ? 'var(--accent)' : 'var(--bg-input)', border: '1px solid var(--border)' }}>
+                <Send className="w-4 h-4" style={{ color: input.trim() ? 'var(--bg-main)' : 'var(--text-muted)' }} />
               </button>
-            </div>
-          </>
+              {uploading && <span className="text-xs" style={{color:'var(--text-muted)'}}>Enviando...</span>}
+            </div>          </>
         )}
       </div>
     </div>

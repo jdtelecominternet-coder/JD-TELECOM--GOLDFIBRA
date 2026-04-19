@@ -1,3 +1,5 @@
+function emit(req, entity) { try { req.app.get('io')?.emit('data:refresh', { entity }); } catch {} }
+
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../database');

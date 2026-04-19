@@ -181,6 +181,37 @@ async function initDatabase() {
     );
   `);
 
+  // ── Solicitation tokens table ────────────────────────────────────────────
+  sqlDb.run(`CREATE TABLE IF NOT EXISTS solicitation_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT NOT NULL UNIQUE,
+    created_by INTEGER,
+    used INTEGER DEFAULT 0,
+    used_at TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
+  // ── Solicitations table ───────────────────────────────────────────────────
+  sqlDb.run(`CREATE TABLE IF NOT EXISTS solicitations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    cpf TEXT,
+    birth_date TEXT,
+    whatsapp TEXT,
+    cep TEXT,
+    street TEXT,
+    number TEXT,
+    complement TEXT,
+    neighborhood TEXT,
+    city TEXT,
+    state TEXT,
+    plan_id INTEGER,
+    install_period TEXT,
+    observations TEXT,
+    status TEXT DEFAULT 'pendente',
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
   // ── Migrations for existing DBs ──────────────────────────────────────────
   const migrations = [
     `ALTER TABLE settings ADD COLUMN seller_commission_type TEXT DEFAULT 'percent'`,
@@ -201,10 +232,90 @@ async function initDatabase() {
     `ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT NULL`,
     `ALTER TABLE settings ADD COLUMN role_permissions TEXT DEFAULT NULL`,
     `ALTER TABLE service_orders ADD COLUMN gold_fibra_id TEXT DEFAULT NULL`,
+    `ALTER TABLE clients ADD COLUMN observations TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN pppoe_user TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN pppoe_pass TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN cto_number TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN cto_port TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN signal_cto REAL DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN signal_client REAL DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN wifi_ssid TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN wifi_pass TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN mac_equipment TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN fiber_lot TEXT DEFAULT NULL`,
+    `ALTER TABLE chat_messages ADD COLUMN media_url TEXT DEFAULT NULL`,
+    `ALTER TABLE chat_messages ADD COLUMN media_type TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN tipo_ordem_servico TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN valor_servico REAL DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN status_pagamento_tecnico TEXT DEFAULT 'pendente'`,
+    `ALTER TABLE settings ADD COLUMN valores_por_tipo TEXT DEFAULT NULL`,
+    `CREATE TABLE IF NOT EXISTS tipos_ordem_servico (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL UNIQUE, valor_padrao REAL NOT NULL DEFAULT 0, ativo INTEGER DEFAULT 1, created_at TEXT DEFAULT (datetime('now')))`,
+    `ALTER TABLE service_orders ADD COLUMN tipo_os_id INTEGER DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN seller_status TEXT DEFAULT 'pendente'`,
+    `ALTER TABLE service_orders ADD COLUMN admin_message TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN install_period TEXT DEFAULT NULL`,
+    `ALTER TABLE solicitations ADD COLUMN email TEXT DEFAULT NULL`,
+    `ALTER TABLE clients ADD COLUMN email TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN fiber_spool_total REAL DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN fiber_spool_remaining REAL DEFAULT NULL`,
+    `ALTER TABLE clients ADD COLUMN commission_paid VARCHAR(10) DEFAULT NULL`,
+    `ALTER TABLE solicitations ADD COLUMN seller_id INTEGER DEFAULT NULL`,
+    `ALTER TABLE solicitations ADD COLUMN token TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN started_at TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN arrived_at TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN cancel_reason TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN cancel_description TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN cancel_photos TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN cancel_at TEXT DEFAULT NULL`,
+    `ALTER TABLE service_orders ADD COLUMN client_signature TEXT DEFAULT NULL`,
   ];
   for (const m of migrations) {
     try { sqlDb.run(m); } catch (_) { /* column already exists */ }
   }
+
+  // ── Tabela de Ocorrências de CTO ─────────────────────────────────────────
+  sqlDb.run(`CREATE TABLE IF NOT EXISTS cto_occurrences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    os_id INTEGER,
+    technician_id INTEGER NOT NULL,
+    cto_number TEXT NOT NULL,
+    problem_type TEXT NOT NULL,
+    photos TEXT,
+    latitude REAL,
+    longitude REAL,
+    geo_address TEXT,
+    observations TEXT,
+    notified INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
+  // ── Tabela de Ordens de Manutenção ────────────────────────────────────────
+  sqlDb.run(`CREATE TABLE IF NOT EXISTS maintenance_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    readable_id TEXT,
+    origin_os_id INTEGER,
+    origin_tech_id INTEGER NOT NULL,
+    assigned_tech_id INTEGER,
+    problem_type TEXT NOT NULL,
+    cto_number TEXT NOT NULL,
+    description TEXT NOT NULL,
+    photos_before TEXT,
+    photos_after TEXT,
+    latitude_origin REAL,
+    longitude_origin REAL,
+    latitude_arrival REAL,
+    longitude_arrival REAL,
+    latitude_finish REAL,
+    longitude_finish REAL,
+    status TEXT DEFAULT 'aguardando',
+    started_at TEXT,
+    arrived_at TEXT,
+    finished_at TEXT,
+    tech_observations TEXT,
+    notified_origin INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
 
   saveDb();
 
@@ -213,6 +324,19 @@ async function initDatabase() {
   if (!s || s.c === 0) {
     _db.prepare(`INSERT INTO settings (id, company_name, seller_commission_type, seller_commission_value, tech_commission_value)
       VALUES (1, 'JD TELECOM - GOLD FIBRA', 'percent', 10, 50)`).run();
+  }
+
+  // ── Seed tipos_ordem_servico ─────────────────────────────────────────────
+  const tipos = _db.prepare('SELECT COUNT(*) as c FROM tipos_ordem_servico').get();
+  if (!tipos || tipos.c === 0) {
+    const insertTipo = _db.prepare('INSERT INTO tipos_ordem_servico (nome, valor_padrao) VALUES (?, ?)');
+    [
+      ['Adesão / Ativação', 120],
+      ['Mudança de Endereço', 80],
+      ['Troca de Equipamento', 60],
+      ['Retirada de Equipamento', 50],
+      ['Troca de Drop (Rompimento)', 70],
+    ].forEach(([nome, valor]) => { try { insertTipo.run(nome, valor); } catch (_) {} });
   }
 
   // ── Seed default admin ───────────────────────────────────────────────────

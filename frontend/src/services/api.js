@@ -12,9 +12,16 @@ api.interceptors.response.use(
   r => r,
   err => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('jd_token');
-      localStorage.removeItem('jd_user');
-      window.location.href = '/login';
+      // Não redirecionar se houver upload/câmera ativa ou se for rota de foto
+      const url = err.config?.url || '';
+      const isUpload = err.config?.headers?.['Content-Type']?.includes('multipart') ||
+                       url.includes('photo') || url.includes('upload') || url.includes('foto');
+      const hasFileInput = document.querySelector('input[type="file"]:focus, input[capture]');
+      if (!isUpload && !hasFileInput) {
+        localStorage.removeItem('jd_token');
+        localStorage.removeItem('jd_user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(err);
   }

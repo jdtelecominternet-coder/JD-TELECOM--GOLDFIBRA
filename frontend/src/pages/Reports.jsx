@@ -23,6 +23,7 @@ export default function Reports() {
   const [commCfg, setCommCfg] = useState(null);
   const [logo, setLogo]       = useState(null);
   const [loading, setLoading] = useState(false);
+  const [generated, setGenerated] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [savingComm, setSavingComm] = useState(false);
   const [commForm, setCommForm] = useState({ seller_commission_type: 'percent', seller_commission_value: 10, tech_commission_value: 50 });
@@ -45,11 +46,13 @@ export default function Reports() {
   async function fetchReport() {
     setLoading(true);
     setData([]);
+    setGenerated(false);
     try {
       if (type === 'commissions') {
         const sr = await api.get('/settings/dashboard');
         const d = sr.data;
         setData({ sellers: d.seller_stats || [], techs: d.tech_stats || [], cfg: d.commission_config });
+        setGenerated(true);
         setLoading(false);
         return;
       }
@@ -60,7 +63,8 @@ export default function Reports() {
       if (filters.to) params.append('to', filters.to);
       const r = await api.get(`/reports/${type}?${params}`);
       setData(r.data);
-    } catch { toast.error('Erro ao gerar relatório'); }
+      setGenerated(true);
+    } catch (err) { toast.error('Erro ao gerar relatório: ' + (err?.response?.data?.error || err?.message || 'Tente novamente')); }
     finally { setLoading(false); }
   }
 
@@ -100,12 +104,13 @@ export default function Reports() {
     let columns = [], rows = [], startY = 45;
 
     if (type === 'sales') {
-      columns = ['Cliente','Vendedor','Plano','Velocidade','Valor','Status','Data'];
+      columns = ['Cliente','Vendedor','Plano','Velocidade','Valor','Tipo de OS','Status','Data'];
       const commType = commCfg?.seller_commission_type;
       const commVal  = commCfg?.seller_commission_value ?? 0;
       rows = (Array.isArray(data) ? data : []).map(r => [
         r.client_name, r.seller_name, r.plan_name, r.speed,
         `R$ ${Number(r.price).toFixed(2)}`,
+        r.tipo_ordem_servico || '—',
         STATUS_LABEL[r.client_status] || r.client_status,
         new Date(r.created_at).toLocaleDateString('pt-BR')
       ]);
@@ -116,9 +121,10 @@ export default function Reports() {
       doc.text(`Total de Vendas: ${(Array.isArray(data) ? data : []).length} | Receita: R$ ${total.toFixed(2)} | Comissão Estimada: R$ ${comm.toFixed(2)}`, 14, startY - 2);
       startY += 3;
     } else if (type === 'installations') {
-      columns = ['OS','Cliente','Técnico','Plano','Status','DROP(m)','Finalizado'];
+      columns = ['OS','Cliente','Técnico','Plano','Tipo de OS','Status','DROP(m)','Finalizado'];
       rows = (Array.isArray(data) ? data : []).map(r => [
         r.os_number, r.client_name, r.tech_name||'—', r.plan_name,
+        r.tipo_ordem_servico || '—',
         STATUS_LABEL[r.status]||r.status,
         r.drop_total ? `${r.drop_total}` : '—',
         r.finished_at ? new Date(r.finished_at).toLocaleDateString('pt-BR') : '—'
@@ -189,7 +195,6 @@ export default function Reports() {
           <h1 className="text-2xl font-black" style={{ color: 'var(--text-primary)' }}>Relatórios</h1>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Geração de relatórios em PDF</p>
         </div>
-        {count > 0 && <button onClick={generatePDF} className="btn-primary"><Download className="w-4 h-4" /> Exportar PDF</button>}
       </div>
 
       {/* Logo + Commission settings */}
@@ -257,10 +262,26 @@ export default function Reports() {
           <div><label className="label">De</label><input type="date" value={filters.from} onChange={e=>setFilters(p=>({...p,from:e.target.value}))} className="input" /></div>
           <div><label className="label">Até</label><input type="date" value={filters.to} onChange={e=>setFilters(p=>({...p,to:e.target.value}))} className="input" /></div>
         </div>
-        <button onClick={fetchReport} disabled={loading} className="btn-primary mt-4">
-          <FileBarChart className="w-4 h-4" /> {loading ? 'Buscando...' : 'Gerar Relatório'}
-        </button>
+        <div className="flex gap-3 mt-4 flex-wrap">
+          <button onClick={fetchReport} disabled={loading} className="btn-primary">
+            <FileBarChart className="w-4 h-4" /> {loading ? 'Buscando...' : 'Gerar Relatório'}
+          </button>
+          {count > 0 && (
+            <button onClick={generatePDF} className="btn-secondary">
+              <Download className="w-4 h-4" /> Exportar PDF
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Empty state */}
+      {generated && count === 0 && (
+        <div className="card text-center py-10">
+          <FileBarChart className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
+          <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Nenhum dado encontrado</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Tente ajustar os filtros ou verificar se há dados cadastrados</p>
+        </div>
+      )}
 
       {/* Table preview */}
       {count > 0 && (
@@ -306,6 +327,7 @@ export default function Reports() {
               <table className="w-full"><thead><tr style={{borderBottom:'1px solid var(--border)'}}>
                 <th className="table-header">Cliente</th><th className="table-header">Vendedor</th>
                 <th className="table-header">Plano</th><th className="table-header">Valor</th>
+                <th className="table-header">Tipo de OS</th>
                 <th className="table-header">Status</th><th className="table-header">Data</th>
               </tr></thead><tbody>
                 {(Array.isArray(data)?data:[]).map((r,i)=><tr key={i} style={{borderBottom:'1px solid var(--border)'}}>
@@ -313,6 +335,7 @@ export default function Reports() {
                   <td className="table-cell">{r.seller_name}</td>
                   <td className="table-cell">{r.plan_name}</td>
                   <td className="table-cell font-bold" style={{color:'var(--accent)'}}>R$ {Number(r.price).toFixed(2)}</td>
+                  <td className="table-cell text-xs" style={{color:'#818cf8'}}>{r.tipo_ordem_servico||'—'}</td>
                   <td className="table-cell"><span className={`badge-${r.client_status}`}>{STATUS_LABEL[r.client_status]||r.client_status}</span></td>
                   <td className="table-cell">{new Date(r.created_at).toLocaleDateString('pt-BR')}</td>
                 </tr>)}
@@ -336,13 +359,15 @@ export default function Reports() {
             ) : (
               <table className="w-full"><thead><tr style={{borderBottom:'1px solid var(--border)'}}>
                 <th className="table-header">OS</th><th className="table-header">Cliente</th>
-                <th className="table-header">Técnico</th><th className="table-header">Status</th>
+                <th className="table-header">Técnico</th><th className="table-header">Tipo de OS</th>
+                <th className="table-header">Status</th>
                 <th className="table-header">DROP</th><th className="table-header">Finalizado</th>
               </tr></thead><tbody>
                 {(Array.isArray(data)?data:[]).map((r,i)=><tr key={i} style={{borderBottom:'1px solid var(--border)'}}>
                   <td className="table-cell font-mono" style={{color:'var(--accent)'}}>{r.os_number}</td>
                   <td className="table-cell" style={{color:'var(--text-primary)'}}>{r.client_name}</td>
                   <td className="table-cell">{r.tech_name||'—'}</td>
+                  <td className="table-cell text-xs" style={{color:'#818cf8'}}>{r.tipo_ordem_servico||'—'}</td>
                   <td className="table-cell"><span className={`badge-${r.status}`}>{STATUS_LABEL[r.status]||r.status}</span></td>
                   <td className="table-cell">{r.drop_total?`${r.drop_total}m`:'—'}</td>
                   <td className="table-cell">{r.finished_at?new Date(r.finished_at).toLocaleDateString('pt-BR'):'—'}</td>

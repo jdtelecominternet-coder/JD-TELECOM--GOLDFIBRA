@@ -1,38 +1,50 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { Plus, Search, Edit, Trash2, X, Eye, EyeOff, Shield, ShoppingBag, Wrench, UserX, CheckCircle, XCircle, Settings2, Globe } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, X, Eye, EyeOff, Shield, ShoppingBag, Wrench, UserX, CheckCircle, XCircle, Settings2, Globe, RotateCcw, Network } from 'lucide-react';
+import AdminDeleteModal from '../components/AdminDeleteModal';
 
-const roleLabel = { admin: 'Administrador', vendedor: 'Vendedor', tecnico: 'Técnico' };
-const roleIcon  = { admin: Shield, vendedor: ShoppingBag, tecnico: Wrench };
+const roleLabel = { admin: 'Administrador', vendedor: 'Vendedor', tecnico: 'Técnico', manutencao: 'Técnico de Rede' };
+const roleIcon  = { admin: Shield, vendedor: ShoppingBag, tecnico: Wrench, manutencao: Network };
 
 // Permissões padrão por role
 const defaultPerms = {
-  admin:    { clients: true, plans: true, orders: true, technical: true, reports: true, chat: true },
-  vendedor: { clients: true, plans: true, orders: true, technical: false, reports: false, chat: false },
-  tecnico:  { clients: false, plans: true, orders: false, technical: true, reports: false, chat: true },
+  admin:      { clients: true, plans: true, orders: true, technical: true, reports: true, chat: true, gerar_link: true },
+  vendedor:   { clients: true, plans: true, orders: true, technical: false, reports: false, chat: false, gerar_link: true },
+  tecnico:    { clients: false, plans: true, orders: false, technical: true, reports: false, chat: true, gerar_link: false },
+  manutencao: { clients: false, plans: false, orders: false, technical: false, reports: false, chat: true, gerar_link: false, servico_rede: true },
 };
 const PERM_LABELS = [
-  { key: 'clients',   label: 'Clientes',            icon: '👥' },
-  { key: 'plans',     label: 'Planos',               icon: '📦' },
-  { key: 'orders',    label: 'Ordens de Serviço',    icon: '📋' },
-  { key: 'technical', label: 'Módulo Técnico',        icon: '🛠️' },
-  { key: 'reports',   label: 'Relatórios',            icon: '📊' },
-  { key: 'chat',      label: 'Chat Interno',          icon: '💬' },
+  { key: 'clients',      label: 'Clientes',              icon: '👥' },
+  { key: 'plans',        label: 'Planos',                 icon: '📦' },
+  { key: 'orders',       label: 'Ordens de Serviço',      icon: '📋' },
+  { key: 'technical',    label: 'Módulo Técnico',          icon: '🛠️' },
+  { key: 'servico_rede', label: 'Módulo Serviço de Rede',  icon: '🌐' },
+  { key: 'reports',      label: 'Relatórios',              icon: '📊' },
+  { key: 'chat',         label: 'Chat Interno',            icon: '💬' },
+  { key: 'gerar_link',   label: 'Gerar Link de Cadastro',  icon: '🔗' },
 ];
 
-const GLOBAL_PERM_LABELS = [
-  { key: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { key: 'users', label: 'Gerenciar Usuarios', icon: '👥' },
-  { key: 'clients', label: 'Clientes', icon: '🤝' },
-  { key: 'plans', label: 'Planos', icon: '📦' },
-  { key: 'orders', label: 'Ordens de Servico', icon: '📋' },
-  { key: 'transfer', label: 'Transferir OS', icon: '🔄' },
-  { key: 'technical', label: 'Modulo Tecnico', icon: '🛠️' },
-  { key: 'reports', label: 'Relatorios', icon: '📈' },
-  { key: 'chat', label: 'Chat', icon: '💬' },
-  { key: 'settings', label: 'Configuracoes', icon: '⚙️' },
-];
+const GLOBAL_PERM_LABELS = {
+  default: [
+    { key: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { key: 'users', label: 'Gerenciar Usuarios', icon: '👥' },
+    { key: 'clients', label: 'Clientes', icon: '🤝' },
+    { key: 'plans', label: 'Planos', icon: '📦' },
+    { key: 'orders', label: 'Ordens de Servico', icon: '📋' },
+    { key: 'transfer', label: 'Transferir OS', icon: '🔄' },
+    { key: 'technical', label: 'Modulo Tecnico', icon: '🛠️' },
+    { key: 'reports', label: 'Relatorios', icon: '📈' },
+    { key: 'chat', label: 'Chat', icon: '💬' },
+    { key: 'settings', label: 'Configuracoes', icon: '⚙️' },
+  ],
+  manutencao: [
+    { key: 'servico_rede', label: 'Modulo Serv. de Rede', icon: '🌐' },
+    { key: 'chat',         label: 'Chat',                 icon: '💬' },
+    { key: 'reports',      label: 'Relatorios',           icon: '📈' },
+    { key: 'settings',     label: 'Configuracoes',        icon: '⚙️' },
+  ],
+};
 export default function Users() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
@@ -47,6 +59,7 @@ export default function Users() {
   const [saving, setSaving] = useState(false);
   const [globalPermsTab, setGlobalPermsTab] = useState("vendedor");
   const [globalPerms, setGlobalPerms] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(null); // { id, name, jd_id }
   const [savingGlobal, setSavingGlobal] = useState(false);
 
   async function load() {
@@ -66,8 +79,8 @@ export default function Users() {
         const r = await api.post('/users', form);
         toast.success(`Usuário criado! ID: ${r.data.jd_id} | Senha: ${form.password || 'jd1234'}`);
       } else {
-        await api.put(`/users/${modal.id}`, { name: form.name, role: form.role, active: form.active });
-        toast.success('Atualizado!');
+        await api.put(`/users/${modal.id}`, { name: form.name, role: form.role, active: form.active, ...(form.password ? { password: form.password } : {}) });
+        toast.success(form.password ? 'Usuário atualizado e senha redefinida!' : 'Atualizado!');
       }
       setModal(null);
       load();
@@ -84,8 +97,15 @@ export default function Users() {
     } catch { toast.error('Erro'); }
   }
 
+  async function resetTechOS(u) {
+    if (!window.confirm(`Zerar TODAS as ordens de serviço e valores de "${u.name}"?\n\nIsso apaga o histórico de OS e ganhos do técnico.\nEsta ação não pode ser desfeita.`)) return;
+    try {
+      const r = await api.delete(`/users/${u.id}/reset-os`);
+      toast.success(r.data.message);
+    } catch (err) { toast.error(err.response?.data?.error || 'Erro ao zerar OS'); }
+  }
+
   async function deleteUser(u) {
-    if (!window.confirm(`Excluir permanentemente "${u.name}" (${u.jd_id})?\n\nEsta ação não pode ser desfeita.`)) return;
     try {
       await api.delete(`/users/${u.id}`);
       toast.success(`${u.name} excluído!`);
@@ -120,10 +140,12 @@ export default function Users() {
 
   function openCreate() {
     setForm({ name: '', role: 'vendedor', password: '' });
+    setShowPw(false);
     setModal('create');
   }
   function openEdit(u) {
     setForm({ name: u.name, role: u.role, password: '', active: u.active });
+    setShowPw(false);
     setModal(u);
   }
 
@@ -138,18 +160,20 @@ export default function Users() {
               <p className="text-xs" style={{color:"var(--text-muted)"}}>Aplica automaticamente a todos os usuarios do cargo</p>
             </div>
           </div>
-          <div className="flex gap-2 mb-3">
-            {["vendedor","tecnico"].map(r=>(
-              <button key={r} onClick={()=>setGlobalPermsTab(r)} className={`px-4 py-1.5 rounded-lg text-sm font-semibold ${globalPermsTab===r?"bg-blue-600 text-white":"opacity-60"}`} style={globalPermsTab!==r?{background:"var(--bg-main)",color:"var(--text-secondary)",border:"1px solid var(--border)"}:{}}>{r==="vendedor"?"Vendedor":"Tecnico"}</button>
+          <div className="flex gap-2 mb-3 flex-wrap">
+            {["vendedor","tecnico","manutencao"].map(r=>(
+              <button key={r} onClick={()=>setGlobalPermsTab(r)} className={`px-4 py-1.5 rounded-lg text-sm font-semibold ${globalPermsTab===r?"bg-blue-600 text-white":"opacity-60"}`} style={globalPermsTab!==r?{background:"var(--bg-main)",color:"var(--text-secondary)",border:"1px solid var(--border)"}:{}}>
+                {r==="vendedor"?"Vendedor": r==="tecnico"?"Tecnico":"Tec. de Rede"}
+              </button>
             ))}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-3">
-            {GLOBAL_PERM_LABELS.map(({key,label,icon})=>{
+            {(GLOBAL_PERM_LABELS[globalPermsTab] || GLOBAL_PERM_LABELS.default).map(({key,label,icon})=>{
               const on=globalPerms[globalPermsTab]?.[key]??false;
               return(<button key={key} onClick={()=>toggleGlobalPerm(globalPermsTab,key)} className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 ${on?"border-blue-500":"border-gray-200 opacity-55"}`} style={on?{background:"rgba(59,130,246,0.1)"}:{background:"var(--bg-main)"}}><span className="text-lg">{icon}</span><span className="text-xs font-semibold" style={{color:on?"var(--accent)":"var(--text-muted)"}}>{label}</span><span className={`text-xs font-bold ${on?"text-blue-500":"text-gray-400"}`}>{on?"ON":"OFF"}</span></button>);
             })}
           </div>
-          <button onClick={()=>saveGlobalPerms(globalPermsTab)} disabled={savingGlobal} className="btn-primary text-sm py-2 px-5">{savingGlobal?"Salvando...":`Salvar ${globalPermsTab==="vendedor"?"Vendedor":"Tecnico"}`}</button>
+          <button onClick={()=>saveGlobalPerms(globalPermsTab)} disabled={savingGlobal} className="btn-primary text-sm py-2 px-5">{savingGlobal?"Salvando...":`Salvar ${globalPermsTab==="vendedor"?"Vendedor": globalPermsTab==="tecnico"?"Tecnico":"Tec. de Rede"}`}</button>
         </div>
       )}
 
@@ -174,6 +198,7 @@ export default function Users() {
           <option value="admin">Administrador</option>
           <option value="vendedor">Vendedor</option>
           <option value="tecnico">Técnico</option>
+          <option value="manutencao">Técnico de Rede</option>
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="input w-auto">
           <option value="">Todos os Status</option>
@@ -245,8 +270,13 @@ export default function Users() {
                             style={{ color: u.active ? '#f59e0b' : '#4ade80' }} title={u.active ? 'Desativar' : 'Ativar'}>
                             {u.active ? <UserX className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                           </button>
+                          {u.jd_id !== 'JD000001' && u.role === 'tecnico' && (
+                            <button onClick={() => resetTechOS(u)} className="p-1.5 rounded-lg" style={{ color: '#f59e0b' }} title="Zerar OS e valores do técnico">
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                          )}
                           {u.jd_id !== 'JD000001' && (
-                            <button onClick={() => deleteUser(u)} className="p-1.5 rounded-lg" style={{ color: '#f87171' }} title="Excluir permanentemente">
+                            <button onClick={() => setDeleteModal({ id: u.id, name: u.name, jd_id: u.jd_id })} className="p-1.5 rounded-lg" style={{ color: '#f87171' }} title="Excluir permanentemente">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           )}
@@ -271,7 +301,7 @@ export default function Users() {
       {/* Modal */}
       {modal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setModal(null)}>
-          <div className="modal-box p-6">
+          <div className="modal-box p-6" key={modal === 'create' ? 'create' : modal?.id}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
                 {modal === 'create' ? 'Novo Usuário' : 'Editar Usuário'}
@@ -292,13 +322,14 @@ export default function Users() {
               )}
               <div>
                 <label className="label">Nome Completo *</label>
-                <input value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))} className="input" placeholder="Nome do colaborador" />
+                <input value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))} className="input" placeholder="Nome do colaborador" autoComplete="off" />
               </div>
               <div>
                 <label className="label">Função *</label>
                 <select value={form.role} onChange={e => setForm(p => ({...p, role: e.target.value}))} className="input">
                   <option value="vendedor">Vendedor</option>
                   <option value="tecnico">Técnico</option>
+                  <option value="manutencao">Técnico de Rede</option>
                   <option value="admin">Administrador</option>
                 </select>
               </div>
@@ -342,9 +373,21 @@ export default function Users() {
                     [true,  'Chat com administrador'],
                     [false, 'Configurações'],
                   ],
+                  manutencao: [
+                    [false, 'Dashboard'],
+                    [false, 'Gerenciar usuários'],
+                    [false, 'Clientes / Planos / OS'],
+                    [true,  'Módulo Serviço de Rede'],
+                    [true,  'Visualizar e executar ordens de rede'],
+                    [true,  'Enviar fotos e registrar evidências'],
+                    [true,  'Geolocalização e temporizador'],
+                    [true,  'Finalizar serviço com PowerMeter'],
+                    [true,  'Chat com administrador'],
+                    [false, 'Configurações'],
+                  ],
                 };
                 const list = perms[form.role] || [];
-                const color = form.role === 'admin' ? '#3b82f6' : form.role === 'vendedor' ? '#10b981' : '#f59e0b';
+                const color = form.role === 'admin' ? '#3b82f6' : form.role === 'vendedor' ? '#10b981' : form.role === 'manutencao' ? '#8b5cf6' : '#f59e0b';
                 return (
                   <div className="rounded-xl p-4" style={{ background: 'var(--bg-input)', border: `1px solid ${color}44` }}>
                     <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color }}>
@@ -369,7 +412,22 @@ export default function Users() {
                   <div className="relative">
                     <input type={showPw ? 'text' : 'password'} value={form.password}
                       onChange={e => setForm(p => ({...p, password: e.target.value}))}
-                      className="input pr-10" placeholder="Senha inicial" />
+                      className="input pr-10" placeholder="Senha inicial" autoComplete="new-password" />
+                    <button type="button" onClick={() => setShowPw(!showPw)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2"
+                      style={{ color: 'var(--text-muted)' }}>
+                      {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {modal !== 'create' && (
+                <div>
+                  <label className="label">Redefinir Senha (deixe em branco para manter)</label>
+                  <div className="relative">
+                    <input type={showPw ? 'text' : 'password'} value={form.password||''}
+                      onChange={e => setForm(p => ({...p, password: e.target.value}))}
+                      className="input pr-10" placeholder="Nova senha..." autoComplete="new-password" />
                     <button type="button" onClick={() => setShowPw(!showPw)}
                       className="absolute right-3 top-1/2 -translate-y-1/2"
                       style={{ color: 'var(--text-muted)' }}>
@@ -455,6 +513,13 @@ export default function Users() {
           </div>
         </div>
       )}
+
+      <AdminDeleteModal
+        open={!!deleteModal}
+        onClose={() => setDeleteModal(null)}
+        itemName={deleteModal ? `${deleteModal.name} (${deleteModal.jd_id})` : 'este usuário'}
+        onConfirmed={() => deleteUser(deleteModal)}
+      />
     </div>
   );
 }

@@ -1,5 +1,16 @@
+function emit(req, entity) { try { req.app.get('io')?.emit('data:refresh', { entity }); } catch {} }
+
 const express = require('express');
 const router = express.Router();
+
+// Rota publica de relatorio (sem auth)
+router.get('/:id/report', (req, res) => {
+  const db = getDb();
+  const os = db.prepare(osQuery + ' WHERE so.id=?').get(req.params.id);
+  if (!os) return res.status(404).json({ error: 'OS nao encontrada' });
+  res.json(os);
+});
+
 const { getDb } = require('../database');
 const { authMiddleware, adminOnly, techOrAdmin, sellerOrAdmin } = require('../middleware/auth');
 const multer = require('multer');
@@ -55,8 +66,8 @@ router.get('/', authMiddleware, (req, res) => {
   const db = getDb();
   let rows;
   if (req.user.role === 'admin')        rows = db.prepare(osQuery + ' ORDER BY so.created_at DESC').all();
-  else if (req.user.role === 'tecnico') rows = db.prepare(osQuery + ' WHERE so.technician_id=? ORDER BY so.created_at DESC').all(req.user.id);
-  else                                  rows = db.prepare(osQuery + ' WHERE so.seller_id=? ORDER BY so.created_at DESC').all(req.user.id);
+  else if (req.user.role === 'tecnico') rows = db.prepare(osQuery + ' WHERE (so.technician_id=? OR (so.technician_id IS NULL AND so.status=?)) ORDER BY so.created_at DESC').all(req.user.id, 'pendente');
+  else                                  rows = db.prepare(osQuery + ' WHERE (so.seller_id=? OR c.seller_id=?) ORDER BY so.created_at DESC').all(req.user.id, req.user.id);
   res.json(rows);
 });
 
@@ -84,17 +95,23 @@ router.get('/:id/transfers', authMiddleware, (req, res) => {
 
 router.post('/', authMiddleware, sellerOrAdmin, (req, res) => {
   const db = getDb();
-  const { client_id, plan_id, technician_id, scheduled_date, observations, seller_id, gold_fibra_id } = req.body;
-  if (!client_id || !plan_id) return res.status(400).json({ error: 'Cliente e plano obrigatórios' });
+  const { client_id, plan_id, technician_id, scheduled_date, observations, seller_id, gold_fibra_id, install_period, tipo_ordem_servico, valor_servico } = req.body;
+  if (!client_id) return res.status(400).json({ error: 'Selecione um cliente' });
+  if (!tipo_ordem_servico) return res.status(400).json({ error: 'Por favor, selecione o tipo de ordem de serviço.' });
+  // Se plan_id não foi enviado, usa o plano já cadastrado no cliente
+  const resolvedPlanId = plan_id || db.prepare('SELECT plan_id FROM clients WHERE id=?').get(client_id)?.plan_id;
+  if (!resolvedPlanId) return res.status(400).json({ error: 'Cliente não possui plano cadastrado. Associe um plano primeiro.' });
 
   const os_number  = generateOSNumber(db);
   const readable_id = generateReadableId(db);
-  const sid = req.user.role === 'vendedor' ? req.user.id : (seller_id || req.user.id);
+  // Se vendedor cria, usa o próprio ID. Se admin cria, usa o seller_id enviado (ou NULL se não informado)
+  const sid = req.user.role === 'vendedor' ? req.user.id : (seller_id || null);
 
   const info = db.prepare(`INSERT INTO service_orders
-    (os_number, readable_id, client_id, plan_id, technician_id, seller_id, scheduled_date, observations, gold_fibra_id)
-    VALUES (?,?,?,?,?,?,?,?,?)`)
-    .run(os_number, readable_id, client_id, plan_id, technician_id || null, sid, scheduled_date || null, observations || null, gold_fibra_id || null);
+    (os_number, readable_id, client_id, plan_id, technician_id, seller_id, scheduled_date, observations, gold_fibra_id, tipo_ordem_servico, valor_servico, install_period, status_pagamento_tecnico)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run(os_number, readable_id, client_id, resolvedPlanId, technician_id || null, sid, scheduled_date || null, observations || null, gold_fibra_id || null, tipo_ordem_servico, valor_servico || null, install_period || null,
+      technician_id ? 'pendente' : null);
 
   // Registra transferência inicial se já foi atribuído a um técnico
   if (technician_id) {
@@ -102,6 +119,12 @@ router.post('/', authMiddleware, sellerOrAdmin, (req, res) => {
       .run(info.lastInsertRowid, sid, technician_id, 'Atribuição inicial');
   }
 
+  emit(req, 'orders');
+  // Notifica técnico em tempo real
+  const io = req.app.get('io');
+  if (io && technician_id) {
+    io.to('user:' + technician_id).emit('os:nova', { message: 'Nova Ordem de Serviço atribuída a você!' });
+  }
   res.json({ id: info.lastInsertRowid, os_number, readable_id, message: 'OS criada' });
 });
 
@@ -119,10 +142,16 @@ router.post('/:id/transfer', authMiddleware, adminOnly, (req, res) => {
 
   const fromId = os.technician_id || os.seller_id;
 
-  db.prepare('UPDATE service_orders SET technician_id=? WHERE id=?').run(to_user_id, req.params.id);
+  db.prepare('UPDATE service_orders SET technician_id=?, status=?, started_at=NULL WHERE id=?').run(to_user_id, 'pendente', req.params.id);
   db.prepare(`INSERT INTO os_transfers (os_id, from_user_id, to_user_id, reason) VALUES (?,?,?,?)`)
     .run(req.params.id, fromId, to_user_id, reason || 'Manobra de OS');
 
+  const io2 = req.app.get('io');
+  if (io2) {
+    if (to_user_id) io2.to('user:' + to_user_id).emit('os:nova', { message: 'Nova Ordem de Serviço atribuída a você!' });
+    if (os.technician_id && os.technician_id !== to_user_id) io2.to('user:' + os.technician_id).emit('os:removida', { message: 'Uma Ordem de Serviço foi removida.' });
+  }
+  emit(req, 'orders');
   res.json({ message: `OS transferida para ${target.name}` });
 });
 
@@ -151,14 +180,22 @@ router.put('/:id/status', authMiddleware, (req, res) => {
     if (missing.length > 0) return res.status(400).json({ error: `Fotos obrigatórias pendentes: ${missing.length} foto(s)` });
   }
 
+  const { cancel_reason, cancel_description, cancel_photos } = req.body;
+
   db.prepare('UPDATE service_orders SET status=?, observations=? WHERE id=?')
     .run(status, observations || os.observations, req.params.id);
 
-  if (status === 'finalizado') {
+  if (status === 'em_execucao') {
+    db.prepare("UPDATE service_orders SET started_at=datetime('now'), arrived_at=datetime('now') WHERE id=? AND started_at IS NULL").run(req.params.id);
+  } else if (status === 'finalizado') {
     db.prepare('UPDATE clients SET status=? WHERE id=?').run('ativo', os.client_id);
-    db.prepare("UPDATE service_orders SET finished_at=datetime('now'), payment_seller_status='a_receber', payment_tech_status='pendente' WHERE id=?").run(req.params.id);
+    db.prepare("UPDATE service_orders SET finished_at=datetime('now'), seller_status='a_receber', payment_seller_status='a_receber', payment_tech_status='pendente', status_pagamento_tecnico='pendente' WHERE id=?").run(req.params.id);
   } else if (status === 'cancelado') {
     db.prepare('UPDATE clients SET status=? WHERE id=?').run('cancelado', os.client_id);
+    if (cancel_reason) {
+      db.prepare("UPDATE service_orders SET cancel_reason=?, cancel_description=?, cancel_photos=?, cancel_at=datetime('now') WHERE id=?")
+        .run(cancel_reason, cancel_description || null, cancel_photos ? JSON.stringify(cancel_photos) : null, req.params.id);
+    }
   }
   res.json({ message: 'Status atualizado' });
 });
@@ -182,20 +219,22 @@ router.put('/:id/technical', authMiddleware, (req, res) => {
   if (req.user.role === 'vendedor') return res.status(403).json({ error: 'Acesso negado' });
   if (req.user.role === 'tecnico' && os.technician_id !== req.user.id) return res.status(403).json({ error: 'Acesso negado' });
 
-  const { drop_start, drop_end, mat_esticador, mat_conector, mat_bucha, mat_fixa_cabo, tech_observations } = req.body;
+  const { drop_start, drop_end, mat_esticador, mat_conector, mat_bucha, mat_fixa_cabo, tech_observations, pppoe_user, pppoe_pass, cto_number, cto_port, signal_cto, signal_client, wifi_name, wifi_ssid, wifi_pass, equipment_mac, mac_equipment, fiber_lot, fiber_spool_total } = req.body;
   const drop_total = (drop_start && drop_end) ? Math.abs(parseFloat(drop_end) - parseFloat(drop_start)) : os.drop_total;
-
-  db.prepare(`UPDATE service_orders SET drop_start=?, drop_end=?, drop_total=?,
-    mat_esticador=?, mat_conector=?, mat_bucha=?, mat_fixa_cabo=?, tech_observations=? WHERE id=?`)
-    .run(drop_start || os.drop_start, drop_end || os.drop_end, drop_total,
-      mat_esticador ?? os.mat_esticador, mat_conector ?? os.mat_conector,
-      mat_bucha ?? os.mat_bucha, mat_fixa_cabo ?? os.mat_fixa_cabo,
-      tech_observations || os.tech_observations, req.params.id);
-
-  res.json({ message: 'Dados técnicos salvos', drop_total });
+  const spoolTotal = 1000;
+  const fiber_spool_remaining = !isNaN(drop_total) ? spoolTotal - drop_total : (os.fiber_spool_remaining ?? null);
+  try {
+  db.prepare('UPDATE service_orders SET drop_start=?,drop_end=?,drop_total=?,mat_esticador=?,mat_conector=?,mat_bucha=?,mat_fixa_cabo=?,tech_observations=?,pppoe_user=?,pppoe_pass=?,cto_number=?,cto_port=?,signal_cto=?,signal_client=?,wifi_ssid=?,wifi_pass=?,mac_equipment=?,fiber_lot=?,fiber_spool_total=?,fiber_spool_remaining=? WHERE id=?')
+    .run(drop_start||os.drop_start,drop_end||os.drop_end,drop_total,mat_esticador??os.mat_esticador,mat_conector??os.mat_conector,mat_bucha??os.mat_bucha,mat_fixa_cabo??os.mat_fixa_cabo,tech_observations||os.tech_observations,pppoe_user??os.pppoe_user,pppoe_pass??os.pppoe_pass,cto_number??os.cto_number,cto_port??os.cto_port,signal_cto??os.signal_cto,signal_client??os.signal_client,(wifi_name??wifi_ssid)??os.wifi_ssid,wifi_pass??os.wifi_pass,(mac_equipment??equipment_mac)??os.mac_equipment,fiber_lot??os.fiber_lot,fiber_spool_total??os.fiber_spool_total,fiber_spool_remaining,req.params.id);
+  res.json({ message: 'Dados tecnicos salvos', drop_total });
+  } catch(e) { console.error('ERR technical:', e.message); res.status(500).json({ error: e.message }); }
 });
 
 const PHOTO_FIELDS = ['photo_cto_open','photo_cto_closed','photo_signal_cto','photo_meter','photo_mac','photo_onu','photo_speedtest'];
+
+
+
+
 
 router.post('/:id/photos', authMiddleware,
   uploadPhotos.fields(PHOTO_FIELDS.map(name => ({ name, maxCount: 1 }))),
@@ -218,6 +257,24 @@ router.post('/:id/photos', authMiddleware,
   }
 );
 
+// DELETE /api/orders/:id/photo/:field — remove uma foto específica
+const ALLOWED_PHOTO_FIELDS = [
+  'photo_cto_open','photo_cto_closed','photo_signal','photo_meter',
+  'photo_mac','photo_onu','photo_speedtest','photo_cto_open2'
+];
+router.delete('/:id/photo/:field', authMiddleware, (req, res) => {
+  const db = getDb();
+  const { field } = req.params;
+  if (!ALLOWED_PHOTO_FIELDS.includes(field)) return res.status(400).json({ error: 'Campo inválido' });
+  const os = db.prepare('SELECT * FROM service_orders WHERE id=?').get(req.params.id);
+  if (!os) return res.status(404).json({ error: 'OS não encontrada' });
+  if (req.user.role === 'tecnico' && String(os.technician_id) !== String(req.user.id))
+    return res.status(403).json({ error: 'Acesso negado' });
+  db.prepare(`UPDATE service_orders SET ${field}=NULL WHERE id=?`).run(req.params.id);
+  emit(req, 'orders');
+  res.json({ message: 'Foto removida' });
+});
+
 // PUT /api/orders/:id/payment — admin marca pagamento de vendedor e/ou técnico
 router.put('/:id/payment', authMiddleware, adminOnly, (req, res) => {
   const db = getDb();
@@ -227,15 +284,87 @@ router.put('/:id/payment', authMiddleware, adminOnly, (req, res) => {
   if (os.status !== 'finalizado') return res.status(400).json({ error: 'OS precisa estar finalizada para registrar pagamento' });
 
   if (pay_seller) db.prepare("UPDATE service_orders SET payment_seller_status='pago', payment_seller_at=datetime('now') WHERE id=?").run(req.params.id);
-  if (pay_tech)   db.prepare("UPDATE service_orders SET payment_tech_status='pago', payment_tech_at=datetime('now') WHERE id=?").run(req.params.id);
+  if (pay_tech)   db.prepare("UPDATE service_orders SET payment_tech_status='pago', payment_tech_at=datetime('now'), status_pagamento_tecnico='pago' WHERE id=?").run(req.params.id);
 
   res.json({ message: 'Pagamento registrado' });
 });
 
+// PUT /api/orders/:id/valor-servico — admin edita valor do serviço
+router.put('/:id/valor-servico', authMiddleware, adminOnly, (req, res) => {
+  const db = getDb();
+  const { valor_servico } = req.body;
+  const os = db.prepare('SELECT id FROM service_orders WHERE id=?').get(req.params.id);
+  if (!os) return res.status(404).json({ error: 'OS não encontrada' });
+  db.prepare('UPDATE service_orders SET valor_servico=? WHERE id=?').run(valor_servico || null, req.params.id);
+  emit(req, 'orders');
+  res.json({ message: 'Valor atualizado' });
+});
+
+// PUT /api/orders/:id/observations — admin edita observacoes internas
+router.put('/:id/observations', authMiddleware, adminOnly, (req, res) => {
+  const db = getDb();
+  const { observations } = req.body;
+  const os = db.prepare('SELECT * FROM service_orders WHERE id=?').get(req.params.id);
+  if (!os) return res.status(404).json({ error: 'OS não encontrada' });
+  db.prepare('UPDATE service_orders SET observations=? WHERE id=?').run(observations || '', req.params.id);
+  emit(req, 'orders');
+  res.json({ message: 'Observações salvas' });
+});
+
+// PUT /api/orders/:id/seller-status — admin atualiza status de venda e mensagem ao vendedor
+router.put('/:id/seller-status', authMiddleware, adminOnly, (req, res) => {
+  const db = getDb();
+  const { seller_status, admin_message } = req.body;
+  const validStatus = ['pendente','a_receber','ja_recebido','cancelado'];
+  if (seller_status && !validStatus.includes(seller_status))
+    return res.status(400).json({ error: 'Status inválido' });
+  const os = db.prepare('SELECT * FROM service_orders WHERE id=?').get(req.params.id);
+  if (!os) return res.status(404).json({ error: 'OS não encontrada' });
+  const sets = [];
+  const vals = [];
+  if (seller_status !== undefined) { sets.push('seller_status=?'); vals.push(seller_status); }
+  if (admin_message !== undefined) { sets.push('admin_message=?'); vals.push(admin_message); }
+  if (sets.length === 0) return res.status(400).json({ error: 'Nada para atualizar' });
+  vals.push(req.params.id);
+  db.prepare(`UPDATE service_orders SET ${sets.join(', ')} WHERE id=?`).run(...vals);
+  emit(req, 'orders');
+  res.json({ message: 'Atualizado' });
+});
+
 router.delete('/:id', authMiddleware, adminOnly, (req, res) => {
   const db = getDb();
+  const os = db.prepare('SELECT * FROM service_orders WHERE id=?').get(req.params.id);
+  if (!os) return res.status(404).json({ error: 'OS não encontrada' });
   db.prepare('DELETE FROM service_orders WHERE id=?').run(req.params.id);
-  res.json({ message: 'OS removida' });
+  // Se a OS era finalizada, reverter status do cliente se não tiver outra OS finalizada
+  if (os.client_id && os.status === 'finalizado') {
+    const outrasFinalizadas = db.prepare("SELECT COUNT(*) as c FROM service_orders WHERE client_id=? AND status='finalizado'").get(os.client_id).c;
+    if (outrasFinalizadas === 0) {
+      db.prepare("UPDATE clients SET status='pendente' WHERE id=?").run(os.client_id);
+    }
+  }
+  emit(req, 'orders'); res.json({ message: 'OS removida' });
+});
+
+// PUT /api/orders/:id/pay-tech — admin marca pagamento do técnico como pago
+router.put('/:id/pay-tech', authMiddleware, adminOnly, (req, res) => {
+  const db = getDb();
+  const os = db.prepare('SELECT * FROM service_orders WHERE id=?').get(req.params.id);
+  if (!os) return res.status(404).json({ error: 'OS não encontrada' });
+  const status = req.body.status_pagamento_tecnico || 'pago';
+  const valid = ['pendente','pago'];
+  if (!valid.includes(status)) return res.status(400).json({ error: 'Status inválido' });
+  db.prepare('UPDATE service_orders SET status_pagamento_tecnico=?, payment_tech_status=? WHERE id=?').run(status, status, req.params.id);
+  emit(req, 'orders');
+  res.json({ message: 'Técnico atualizado' });
+});
+
+// Rota publica de relatorio
+router.get('/:id/report', (req, res) => {
+  const db = getDb();
+  const os = db.prepare('SELECT * FROM service_orders WHERE id=?').get(req.params.id);
+  if (!os) return res.status(404).json({ error: 'OS nao encontrada' });
+  res.json(os);
 });
 
 module.exports = router;

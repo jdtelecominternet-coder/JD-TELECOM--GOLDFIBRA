@@ -17,13 +17,14 @@ const PORT = process.env.PORT || 3001;
 
 // Ensure upload directories exist
 const fs = require('fs');
-['uploads/logos', 'uploads/photos', 'uploads/profiles'].forEach(dir => {
+['uploads/logos', 'uploads/photos', 'uploads/profiles', 'uploads/chat'].forEach(dir => {
   const full = path.join(__dirname, '..', dir);
   if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true });
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Track online users: userId -> { socketId, jd_id, name, role }
@@ -45,11 +46,7 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   const user = socket.user;
 
-  // Only admin and tecnico can use chat
-  if (!['admin', 'tecnico'].includes(user.role)) {
-    socket.disconnect();
-    return;
-  }
+  // Admin, tecnico e vendedor podem usar o chat
 
   // Mark user online
   onlineUsers.set(user.id, { socketId: socket.id, jd_id: user.jd_id, name: user.name, role: user.role });
@@ -72,16 +69,17 @@ io.on('connection', (socket) => {
     // Mark as read
     db.prepare('UPDATE chat_messages SET read_at=datetime("now") WHERE receiver_id=? AND sender_id=? AND read_at IS NULL')
       .run(user.id, with_user_id);
+    // Notify sender that messages were read
+    io.to('user:' + with_user_id).emit('chat:read', { by_user_id: user.id });
   });
 
   // Send message
   socket.on('chat:send', ({ receiver_id, message }) => {
     if (!message?.trim()) return;
-    if (!['admin', 'tecnico'].includes(user.role)) return;
 
     const db = getDb();
     const receiver = db.prepare('SELECT id, role FROM users WHERE id=? AND active=1').get(receiver_id);
-    if (!receiver || !['admin', 'tecnico'].includes(receiver.role)) return;
+    if (!receiver) return;
 
     const info = db.prepare(`INSERT INTO chat_messages (sender_id, receiver_id, message) VALUES (?,?,?)`)
       .run(user.id, receiver_id, message.trim());
@@ -107,9 +105,17 @@ io.on('connection', (socket) => {
     io.to(`user:${receiver_id}`).emit('chat:typing', { sender_id: user.id, typing });
   });
 
+  socket.on('ping', () => { /* keepalive */ });
+
   socket.on('disconnect', () => {
-    onlineUsers.delete(user.id);
-    io.emit('users:online', Array.from(onlineUsers.entries()).map(([id, u]) => ({ id, ...u })));
+    // Aguarda 8 segundos antes de marcar offline (evita piscar ao reconectar)
+    setTimeout(() => {
+      const current = onlineUsers.get(user.id);
+      if (current && current.socketId === socket.id) {
+        onlineUsers.delete(user.id);
+        io.emit('users:online', Array.from(onlineUsers.entries()).map(([id, u]) => ({ id, ...u })));
+      }
+    }, 30000);
   });
 });
 
@@ -124,11 +130,16 @@ async function start() {
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/users', require('./routes/users'));
   app.use('/api/clients', require('./routes/clients'));
+  app.use('/api/solicitations', require('./routes/solicitations'));
   app.use('/api/plans', require('./routes/plans'));
   app.use('/api/orders', require('./routes/orders'));
   app.use('/api/settings', require('./routes/settings'));
   app.use('/api/reports', require('./routes/reports'));
   app.use('/api/chat', require('./routes/chat'));
+  app.use('/api/ai', require('./routes/ai'));
+  app.use('/api/cto', require('./routes/cto'));
+  app.use('/api/maintenance', require('./routes/maintenance'));
+  app.use('/api/tipos-os', require('./routes/tiposOs'));
 
   app.get('/api/health', (req, res) => res.json({ status: 'OK', system: 'JD TELECOM - GOLD FIBRA' }));
 

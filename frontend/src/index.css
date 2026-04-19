@@ -147,3 +147,24 @@
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background-color: var(--bg-main); }
 ::-webkit-scrollbar-thumb { background-color: var(--scrollbar); border-radius: 9999px; }
+
+/* ─── Forçar tema em selects/inputs mobile ───────────────────────────────── */
+select, select option {
+  background-color: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+}
+textarea {
+  background-color: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+textarea::placeholder { color: var(--text-muted); }
+
+/* ─── Mobile: botões maiores ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .btn-primary, .btn-secondary, .btn-danger {
+    @apply py-3 text-base;
+    min-height: 48px;
+  }
+  .input, select { min-height: 44px; font-size: 16px; }
+}

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useSync } from '../hooks/useSync';
 import toast from 'react-hot-toast';
 import { Plus, Edit, Trash2, X, Wifi, DollarSign } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import AdminDeleteModal from '../components/AdminDeleteModal';
 
 export default function Plans() {
   const { user } = useAuth();
@@ -11,12 +13,14 @@ export default function Plans() {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deleteModal, setDeleteModal] = useState(null); // { id, name }
 
   async function load() {
     try { const r = await api.get('/plans'); setPlans(r.data); } catch {}
     finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
+  useSync('plans', load);
 
   async function save() {
     if (!form.name || !form.speed || !form.price) return toast.error('Campos obrigatórios');
@@ -30,7 +34,6 @@ export default function Plans() {
   }
 
   async function del(id) {
-    if (!confirm('Desativar plano?')) return;
     try { await api.delete(`/plans/${id}`); toast.success('Plano desativado'); load(); } catch { toast.error('Erro'); }
   }
 
@@ -68,7 +71,7 @@ export default function Plans() {
                       style={{ color: 'var(--text-muted)' }}>
                       <Edit className="w-4 h-4" />
                     </button>
-                    <button onClick={() => del(p.id)}
+                    <button onClick={() => setDeleteModal({ id: p.id, name: p.name })}
                       className="p-1.5 rounded-lg transition-colors"
                       style={{ color: '#f87171' }}>
                       <Trash2 className="w-4 h-4" />
@@ -119,6 +122,13 @@ export default function Plans() {
           </div>
         </div>
       )}
+
+      <AdminDeleteModal
+        open={!!deleteModal}
+        onClose={() => setDeleteModal(null)}
+        itemName={deleteModal?.name || 'este plano'}
+        onConfirmed={() => del(deleteModal.id)}
+      />
     </div>
   );
 }

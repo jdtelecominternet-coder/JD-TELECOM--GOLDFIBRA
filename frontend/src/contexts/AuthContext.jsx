@@ -34,6 +34,18 @@ export function AuthProvider({ children }) {
     setUser(updated);
   }
 
+  // Atualiza permissões do servidor automaticamente ao carregar o app
+  useEffect(() => {
+    if (!user) return;
+    api.get('/users/me').then(r => {
+      if (r.data && r.data.permissions !== undefined) {
+        const updated = { ...user, permissions: r.data.permissions };
+        localStorage.setItem('jd_user', JSON.stringify(updated));
+        setUser(updated);
+      }
+    }).catch(() => {});
+  }, []);
+
   return (
     <AuthContext.Provider value={{ user, login, logout, loading, updateUser }}>
       {children}

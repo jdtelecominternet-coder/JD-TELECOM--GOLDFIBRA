@@ -25,6 +25,18 @@ function uniqueJdId(db) {
   return id;
 }
 
+// POST /api/users/verify-admin-password — verifica senha do admin logado
+router.post('/verify-admin-password', authMiddleware, adminOnly, (req, res) => {
+  const db = getDb();
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ error: 'Senha obrigatória' });
+  const pw = db.prepare('SELECT hash FROM passwords WHERE user_id=?').get(req.user.id);
+  if (!pw) return res.status(404).json({ error: 'Usuário não encontrado' });
+  const ok = bcrypt.compareSync(password, pw.hash);
+  if (!ok) return res.status(401).json({ error: 'Senha incorreta' });
+  res.json({ ok: true });
+});
+
 // GET /api/users/me - must come before /:id
 router.get('/me', authMiddleware, (req, res) => {
   const db = getDb();
@@ -71,7 +83,7 @@ router.get('/me/stats', authMiddleware, (req, res) => {
       WHERE so.seller_id=? ORDER BY so.created_at DESC`).all(req.user.id);
   } else if (role === 'tecnico') {
     orders = db.prepare(`SELECT so.*, c.name as client_name, p.name as plan_name FROM service_orders so
-      JOIN clients c ON c.id=so.client_id JOIN plans p ON p.id=so.plan_id
+      JOIN clients c ON c.id=so.client_id LEFT JOIN plans p ON p.id=so.plan_id
       WHERE so.technician_id=? ORDER BY so.created_at DESC`).all(req.user.id);
   } else {
     clients = db.prepare('SELECT * FROM clients ORDER BY created_at DESC LIMIT 10').all();
@@ -110,11 +122,15 @@ router.post('/', authMiddleware, adminOnly, (req, res) => {
 // PUT /api/users/:id
 router.put('/:id', authMiddleware, adminOnly, (req, res) => {
   const db = getDb();
-  const { name, role, active } = req.body;
+  const { name, role, active, password } = req.body;
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
   if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
   db.prepare('UPDATE users SET name=?, role=?, active=? WHERE id=?')
     .run(name || user.name, role || user.role, active !== undefined ? active : user.active, req.params.id);
+  if (password) {
+    const hash = bcrypt.hashSync(password, 10);
+    db.prepare('UPDATE passwords SET hash=? WHERE user_id=?').run(hash, req.params.id);
+  }
   res.json({ message: 'Atualizado' });
 });
 
@@ -138,6 +154,17 @@ router.delete('/:id', authMiddleware, adminOnly, (req, res) => {
   db.prepare('DELETE FROM passwords WHERE user_id=?').run(req.params.id);
   db.prepare('DELETE FROM users WHERE id=?').run(req.params.id);
   res.json({ message: `Usuário ${user.name} excluído permanentemente` });
+});
+
+// DELETE /api/users/:id/reset-os - zera todas as OS e valores do técnico
+router.delete('/:id/reset-os', authMiddleware, adminOnly, (req, res) => {
+  const db = getDb();
+  const user = db.prepare('SELECT * FROM users WHERE id=?').get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+  if (user.role !== 'tecnico') return res.status(400).json({ error: 'Apenas técnicos podem ter OS zeradas' });
+  const n = db.prepare('DELETE FROM service_orders WHERE technician_id=?').run(req.params.id).changes;
+  try { db.prepare("DELETE FROM sqlite_sequence WHERE name='service_orders'").run(); } catch(e) {}
+  res.json({ message: `${n} OS do técnico ${user.name} apagadas com sucesso` });
 });
 
 module.exports = router;

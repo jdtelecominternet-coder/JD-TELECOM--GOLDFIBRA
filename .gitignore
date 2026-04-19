@@ -1,0 +1,48 @@
+# Dependências
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Build
+frontend/dist/
+
+# Banco de dados (SQLite — salvo separado)
+backend/database.db
+database.sqlite3.bin
+
+# Uploads gerados em runtime
+backend/uploads/photos/
+backend/uploads/chat/
+backend/uploads/profiles/
+backend/uploads/logos/
+
+# Ambiente
+.env
+*.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Scripts de debug/fix temporários
+check_*.js
+fix_*.js
+reset_*.js
+restart_*.js
+test_*.js
+deploy.js
+upload_server.js
+ssh_cmd.ps1
+
+# Backup
+*.bak
+
+# Vite cache
+frontend/.vite/
+
+# Pasta temporária
+"novo projeto/"
