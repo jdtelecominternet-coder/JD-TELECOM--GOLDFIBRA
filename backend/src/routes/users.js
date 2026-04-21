@@ -30,10 +30,14 @@ router.post('/verify-admin-password', authMiddleware, adminOnly, (req, res) => {
   const db = getDb();
   const { password } = req.body;
   if (!password) return res.status(400).json({ error: 'Senha obrigatória' });
-  const pw = db.prepare('SELECT hash FROM passwords WHERE user_id=?').get(req.user.id);
-  if (!pw) return res.status(404).json({ error: 'Usuário não encontrado' });
+  // Verifica contra o admin principal: primeiro tenta jd_id '000001', depois menor id com role admin
+  let mainAdmin = db.prepare("SELECT id FROM users WHERE jd_id='000001' AND role='admin'").get();
+  if (!mainAdmin) mainAdmin = db.prepare("SELECT id FROM users WHERE role='admin' ORDER BY id ASC LIMIT 1").get();
+  if (!mainAdmin) return res.status(404).json({ error: 'Admin principal não encontrado' });
+  const pw = db.prepare('SELECT hash FROM passwords WHERE user_id=?').get(mainAdmin.id);
+  if (!pw) return res.status(404).json({ error: 'Senha não encontrada' });
   const ok = bcrypt.compareSync(password, pw.hash);
-  if (!ok) return res.status(401).json({ error: 'Senha incorreta' });
+  if (!ok) return res.status(401).json({ error: 'Senha incorreta. Ação não autorizada.' });
   res.json({ ok: true });
 });
 
@@ -108,7 +112,7 @@ router.post('/', authMiddleware, adminOnly, (req, res) => {
   const db = getDb();
   const { name, role, password } = req.body;
   if (!name || !role) return res.status(400).json({ error: 'Nome e função obrigatórios' });
-  if (!['admin','vendedor','tecnico'].includes(role)) return res.status(400).json({ error: 'Função inválida' });
+  if (!['admin','vendedor','tecnico','manutencao','qualidade'].includes(role)) return res.status(400).json({ error: 'Função inválida' });
 
   const jd_id = uniqueJdId(db);
   const hash = bcrypt.hashSync(password || 'jd1234', 10);
@@ -125,8 +129,17 @@ router.put('/:id', authMiddleware, adminOnly, (req, res) => {
   const { name, role, active, password } = req.body;
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
   if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+  // Proteção: admin principal (000001) nunca pode ser desativado
+  if (user.jd_id === '000001' && active === false) {
+    return res.status(403).json({ error: 'O Administrador Principal não pode ser desativado.' });
+  }
+  // Proteção: admin principal nunca pode ter o role alterado
+  const newRole = (user.jd_id === '000001') ? 'admin' : (['admin','vendedor','tecnico','manutencao','qualidade'].includes(role) ? role : user.role);
+  const newActive = (user.jd_id === '000001') ? 1 : (active !== undefined ? active : user.active);
+
   db.prepare('UPDATE users SET name=?, role=?, active=? WHERE id=?')
-    .run(name || user.name, role || user.role, active !== undefined ? active : user.active, req.params.id);
+    .run(name || user.name, newRole, newActive, req.params.id);
   if (password) {
     const hash = bcrypt.hashSync(password, 10);
     db.prepare('UPDATE passwords SET hash=? WHERE user_id=?').run(hash, req.params.id);
@@ -150,7 +163,10 @@ router.delete('/:id', authMiddleware, adminOnly, (req, res) => {
   const db = getDb();
   const user = db.prepare('SELECT * FROM users WHERE id=?').get(req.params.id);
   if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-  if (user.jd_id === 'JD000001') return res.status(400).json({ error: 'Não é possível excluir o administrador principal' });
+  // Proteção total: admin principal (000001) nunca pode ser excluído
+  if (user.jd_id === '000001' || user.jd_id === 'JD000001') {
+    return res.status(403).json({ error: '🔒 O Administrador Principal não pode ser excluído.' });
+  }
   db.prepare('DELETE FROM passwords WHERE user_id=?').run(req.params.id);
   db.prepare('DELETE FROM users WHERE id=?').run(req.params.id);
   res.json({ message: `Usuário ${user.name} excluído permanentemente` });

@@ -230,6 +230,20 @@ router.put('/:id/status', authMiddleware, (req, res) => {
         io.emit('data:refresh', { entity: 'orders' });
       }
     }
+
+    // 4. Atualizar ocorrência CTO vinculada para "resolvido" (fica verde)
+    try {
+      db.prepare(`
+        UPDATE cto_occurrences
+        SET status='resolvido', resolved_at=datetime('now'), resolved_by_id=?
+        WHERE maintenance_order_id=? OR (cto_number=? AND status!='resolvido')
+      `).run(req.user.id, mo.id, mo.cto_number);
+    } catch {}
+
+    // Notificar atualização das ocorrências CTO
+    if (io) {
+      io.emit('data:refresh', { entity: 'cto_occurrences' });
+    }
   }
 
   res.json({ message: 'Status atualizado' });

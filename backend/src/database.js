@@ -316,8 +316,31 @@ async function initDatabase() {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
+  // ── Estoque de ONUs por técnico ──────────────────────────────────────────
+  sqlDb.run(`CREATE TABLE IF NOT EXISTS tech_stock (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tech_id INTEGER NOT NULL,
+    mac_address TEXT NOT NULL UNIQUE,
+    modelo TEXT,
+    serial TEXT,
+    status TEXT DEFAULT 'disponivel',
+    client_id INTEGER,
+    os_id INTEGER,
+    obs TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    used_at TEXT
+  )`);
 
-  saveDb();
+  sqlDb.run(`CREATE TABLE IF NOT EXISTS tech_stock_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    stock_id INTEGER NOT NULL,
+    tech_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    client_id INTEGER,
+    os_id INTEGER,
+    obs TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
 
   // ── Seed default settings ────────────────────────────────────────────────
   const s = _db.prepare('SELECT COUNT(*) as c FROM settings').get();
@@ -338,6 +361,63 @@ async function initDatabase() {
       ['Troca de Drop (Rompimento)', 70],
     ].forEach(([nome, valor]) => { try { insertTipo.run(nome, valor); } catch (_) {} });
   }
+
+  // ── Tabela providers (cadastro de provedores ISP) ─────────────────────────
+  _db.prepare(`CREATE TABLE IF NOT EXISTS providers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    tipo_auth TEXT DEFAULT 'pppoe',
+    ip_servidor TEXT,
+    porta INTEGER DEFAULT 8728,
+    tipo_integracao TEXT DEFAULT 'api',
+    usuario TEXT,
+    senha TEXT,
+    token TEXT,
+    vlan TEXT,
+    perfil_velocidade TEXT,
+    pool_ip TEXT,
+    tipo_olt TEXT DEFAULT 'nenhuma',
+    ip_olt TEXT,
+    porta_olt INTEGER DEFAULT 23,
+    usuario_olt TEXT,
+    senha_olt TEXT,
+    ativo INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`).run();
+
+  // ── Tabela client_provisioning ────────────────────────────────────────────
+  _db.prepare(`CREATE TABLE IF NOT EXISTS client_provisioning (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER,
+    provider_id INTEGER,
+    login_pppoe TEXT,
+    senha_pppoe TEXT,
+    plano TEXT,
+    mac_onu TEXT,
+    serial_onu TEXT,
+    status TEXT DEFAULT 'pendente',
+    log TEXT,
+    created_by INTEGER,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`).run();
+
+  // ── Tabela quality_control ───────────────────────────────────────────────
+  _db.prepare(`CREATE TABLE IF NOT EXISTS quality_control (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    os_id INTEGER NOT NULL,
+    status TEXT DEFAULT 'aguardando',
+    correction_status TEXT DEFAULT NULL,
+    supervisor_id INTEGER,
+    supervisor_obs TEXT,
+    supervisor_photos TEXT,
+    tech_obs TEXT,
+    tech_correction_photos TEXT,
+    cycle INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`).run();
+  // migration: adicionar correction_status se não existir
+  try { _db.prepare("ALTER TABLE quality_control ADD COLUMN correction_status TEXT DEFAULT NULL").run(); } catch(_) {}
 
   // ── Seed default admin ───────────────────────────────────────────────────
   const a = _db.prepare("SELECT COUNT(*) as c FROM users WHERE role='admin'").get();

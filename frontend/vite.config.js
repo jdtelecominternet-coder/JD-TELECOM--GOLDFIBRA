@@ -25,11 +25,13 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/jdtelecom\.online\/api\//,
             handler: 'NetworkFirst',
-            options: { cacheName: 'api-cache' }
+            options: { cacheName: 'api-cache', networkTimeoutSeconds: 10 }
           }
         ]
       }

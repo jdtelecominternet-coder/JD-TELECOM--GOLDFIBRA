@@ -89,4 +89,12 @@ router.patch('/:id/pay-commission', authMiddleware, adminOnly, (req, res) => {
   res.json({ message: 'Comissão paga' });
 });
 
+// Rota publica de relatorio do cliente (sem auth)
+router.get('/:id/report', (req, res) => {
+  const db = getDb();
+  const c = db.prepare('SELECT * FROM clients WHERE id=?').get(req.params.id);
+  if (!c) return res.status(404).json({ error: 'Cliente não encontrado' });
+  res.json(c);
+});
+
 module.exports = router;

@@ -108,14 +108,35 @@ io.on('connection', (socket) => {
   socket.on('ping', () => { /* keepalive */ });
 
   socket.on('disconnect', () => {
-    // Aguarda 8 segundos antes de marcar offline (evita piscar ao reconectar)
+    // Aguarda 5 segundos antes de marcar offline
     setTimeout(() => {
       const current = onlineUsers.get(user.id);
       if (current && current.socketId === socket.id) {
         onlineUsers.delete(user.id);
         io.emit('users:online', Array.from(onlineUsers.entries()).map(([id, u]) => ({ id, ...u })));
+        // Notifica admins que técnico foi offline (remove localização)
+        io.emit('tech:offline', { user_id: user.id });
       }
-    }, 30000);
+    }, 5000);
+  });
+
+  // Técnico transmite localização em tempo real
+  socket.on('tech:location', ({ latitude, longitude, geo_address }) => {
+    if (!['tecnico', 'manutencao'].includes(user.role)) return;
+    // Atualiza o mapa em memória e broadcast para todos admins
+    const entry = onlineUsers.get(user.id);
+    if (entry) {
+      onlineUsers.set(user.id, { ...entry, latitude, longitude, geo_address });
+    }
+    io.emit('tech:location_update', {
+      user_id: user.id,
+      jd_id: user.jd_id,
+      name: user.name,
+      latitude,
+      longitude,
+      geo_address,
+      ts: Date.now(),
+    });
   });
 });
 
@@ -128,6 +149,7 @@ async function start() {
   console.log('Banco de dados iniciado.');
 
   app.use('/api/auth', require('./routes/auth'));
+  app.use('/api/auth/webauthn', require('./routes/webauthn'));
   app.use('/api/users', require('./routes/users'));
   app.use('/api/clients', require('./routes/clients'));
   app.use('/api/solicitations', require('./routes/solicitations'));
@@ -139,7 +161,11 @@ async function start() {
   app.use('/api/ai', require('./routes/ai'));
   app.use('/api/cto', require('./routes/cto'));
   app.use('/api/maintenance', require('./routes/maintenance'));
+  app.use('/api/stock',       require('./routes/stock'));
   app.use('/api/tipos-os', require('./routes/tiposOs'));
+  app.use('/api/providers', require('./routes/providers'));
+  app.use('/api/provisioning', require('./routes/provisioning'));
+  app.use('/api/quality-control', require('./routes/qualityControl'));
 
   app.get('/api/health', (req, res) => res.json({ status: 'OK', system: 'JD TELECOM - GOLD FIBRA' }));
 

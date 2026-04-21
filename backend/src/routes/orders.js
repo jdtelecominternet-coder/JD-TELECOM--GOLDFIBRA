@@ -190,6 +190,27 @@ router.put('/:id/status', authMiddleware, (req, res) => {
   } else if (status === 'finalizado') {
     db.prepare('UPDATE clients SET status=? WHERE id=?').run('ativo', os.client_id);
     db.prepare("UPDATE service_orders SET finished_at=datetime('now'), seller_status='a_receber', payment_seller_status='a_receber', payment_tech_status='pendente', status_pagamento_tecnico='pendente' WHERE id=?").run(req.params.id);
+
+    // Verificar se há supervisor online em tempo real
+    const onlineUsers = req.app.get('onlineUsers') || new Map();
+    const supervisorOnline = Array.from(onlineUsers.values()).some(u => u.role === 'qualidade');
+
+    if (supervisorOnline) {
+      // Envia para Controle de Qualidade
+      const existingCQ = db.prepare("SELECT id FROM quality_control WHERE os_id=?").get(req.params.id);
+      if (!existingCQ) {
+        db.prepare("INSERT INTO quality_control (os_id, status, created_at, updated_at) VALUES (?, 'aguardando', datetime('now'), datetime('now'))").run(req.params.id);
+      } else {
+        db.prepare("UPDATE quality_control SET status='aguardando', updated_at=datetime('now') WHERE os_id=?").run(req.params.id);
+      }
+      req.app.get('io')?.emit('data:refresh', { type: 'quality_control' });
+      // Notificar supervisor
+      req.app.get('io')?.emit('notification', { message: `Nova OS #${os.os_number} aguardando Controle de Qualidade`, type: 'cq' });
+    } else {
+      // Finaliza diretamente sem CQ
+      db.prepare("UPDATE service_orders SET status_pagamento_tecnico='a_receber' WHERE id=?").run(req.params.id);
+    }
+    req.app.get('io')?.emit('data:refresh', { type: 'orders' });
   } else if (status === 'cancelado') {
     db.prepare('UPDATE clients SET status=? WHERE id=?').run('cancelado', os.client_id);
     if (cancel_reason) {

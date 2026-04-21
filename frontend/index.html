@@ -24,12 +24,16 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- Captura o evento ANTES do React carregar -->
+    <!-- Captura o evento ANTES do React carregar e bloqueia em páginas públicas -->
     <script>
       window.__pwaPrompt = null;
       window.addEventListener('beforeinstallprompt', function(e) {
-        e.preventDefault();
-        window.__pwaPrompt = e;
+        e.preventDefault(); // impede o browser de mostrar o popup nativo
+        // Só salva o prompt se não estiver em página pública
+        var isPublic = window.location.pathname.indexOf('/solicitar') === 0;
+        if (!isPublic) {
+          window.__pwaPrompt = e;
+        }
       });
     </script>
     <script type="module" src="/src/main.jsx"></script>

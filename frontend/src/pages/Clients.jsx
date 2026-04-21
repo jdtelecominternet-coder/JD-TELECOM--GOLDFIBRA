@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useSync } from '../hooks/useSync';
 import toast from 'react-hot-toast';
-import { Plus, Search, Edit, Trash2, X, MapPin, Phone, Calendar, MessageCircle, Send, FileText } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, X, MapPin, Phone, Calendar, MessageCircle, Send, FileText, Link, ChevronDown, ChevronUp, BookUser } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import AdminDeleteModal from '../components/AdminDeleteModal';
 
@@ -100,6 +100,11 @@ function buildWhatsAppMsg(c) {
     lines.push(c.observations);
     lines.push(``);
   }
+  if (c.id) {
+    lines.push(`*📄 SEU RELATÓRIO DE PEDIDO*`);
+    lines.push(`https://jdtelecom.online/relatorio-pedido/${c.id}`);
+    lines.push(``);
+  }
   lines.push(`Em caso de dúvidas, entre em contato conosco.`);
   lines.push(`Obrigado por escolher a *JD TELECOM - GOLD FIBRA*! 🌐`);
   return lines.join('\n');
@@ -145,6 +150,11 @@ function buildPRFMsg(c) {
   lines.push(`━━━━━━━━━━━━━━━━━━━━━━━`);
   lines.push(`✅ Pedido registrado pelo sistema JD TELECOM.`);
   lines.push(`Por favor, confirme o agendamento da instalação.`);
+  if (c.id) {
+    lines.push(``);
+    lines.push(`*📄 RELATÓRIO DO PEDIDO*`);
+    lines.push(`https://jdtelecom.online/relatorio-pedido/${c.id}`);
+  }
   return lines.join('\n');
 }
 
@@ -215,6 +225,15 @@ function openWhatsAppPRF(c) {
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
+
+// Carrega destinos salvos do localStorage
+function loadDestinos() {
+  try { return JSON.parse(localStorage.getItem('wa_destinos') || '[]'); } catch { return []; }
+}
+function saveDestinos(list) {
+  localStorage.setItem('wa_destinos', JSON.stringify(list));
+}
+
 export default function Clients() {
   const { user } = useAuth();
   const [clients, setClients] = useState([]);
@@ -227,7 +246,63 @@ export default function Clients() {
   const [cepLoading, setCepLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [deleteModal, setDeleteModal] = useState(null); // { id, name }
+  const [deleteModal, setDeleteModal] = useState(null);
+
+  // Destinos WhatsApp
+  const [destinos, setDestinos] = useState(loadDestinos);
+  const [showDestinoPanel, setShowDestinoPanel] = useState(false);
+  const [novoDestino, setNovoDestino] = useState({ nome: '', numero: '' });
+  const [editDestinoIdx, setEditDestinoIdx] = useState(null);
+  // Modal de envio
+  const [sendModal, setSendModal] = useState(null); // { client, tipo: 'boasvindas'|'prf' }
+
+  function salvarDestino() {
+    const nome = novoDestino.nome.trim();
+    const numero = novoDestino.numero.replace(/\D/g, '');
+    if (!nome) return toast.error('Informe o nome do contato');
+    if (numero.length < 10) return toast.error('Número inválido (mínimo 10 dígitos)');
+    let lista;
+    if (editDestinoIdx !== null) {
+      lista = destinos.map((d, i) => i === editDestinoIdx ? { nome, numero } : d);
+      setEditDestinoIdx(null);
+    } else {
+      lista = [...destinos, { nome, numero }];
+    }
+    setDestinos(lista);
+    saveDestinos(lista);
+    setNovoDestino({ nome: '', numero: '' });
+    toast.success('Contato salvo!');
+  }
+
+  function removerDestino(idx) {
+    const lista = destinos.filter((_, i) => i !== idx);
+    setDestinos(lista);
+    saveDestinos(lista);
+  }
+
+  function editarDestino(idx) {
+    setNovoDestino({ nome: destinos[idx].nome, numero: destinos[idx].numero });
+    setEditDestinoIdx(idx);
+    setShowDestinoPanel(true);
+  }
+
+  function enviarParaDestino(d) {
+    const { client, tipo } = sendModal;
+    const phone = d.numero.startsWith('55') ? d.numero : '55' + d.numero;
+    const msg = tipo === 'prf' ? buildPRFMsg(client) : buildWhatsAppMsg(client);
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    setSendModal(null);
+  }
+
+  function enviarParaCliente() {
+    const { client, tipo } = sendModal;
+    if (!client.whatsapp) { toast.error('Cliente sem WhatsApp cadastrado'); return; }
+    const num = client.whatsapp.replace(/\D/g, '');
+    const phone = num.startsWith('55') ? num : '55' + num;
+    const msg = tipo === 'prf' ? buildPRFMsg(client) : buildWhatsAppMsg(client);
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    setSendModal(null);
+  }
 
   async function load() {
     try {
@@ -317,8 +392,119 @@ export default function Clients() {
           <h1 className="text-2xl font-black" style={{ color: 'var(--text-primary)' }}>Clientes</h1>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{clients.length} clientes cadastrados</p>
         </div>
-        <button onClick={openCreate} className="btn-primary"><Plus className="w-4 h-4" /> Novo Cliente</button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowDestinoPanel(v => !v)} className="btn-secondary flex items-center gap-2" title="Destinos WhatsApp">
+            <BookUser className="w-4 h-4" style={{ color: '#25d366' }} />
+            <span className="hidden sm:inline">Destinos WhatsApp</span>
+            {showDestinoPanel ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+          <button onClick={openCreate} className="btn-primary"><Plus className="w-4 h-4" /> Novo Cliente</button>
+        </div>
       </div>
+
+      {/* ── Painel de destinos WhatsApp ── */}
+      {showDestinoPanel && (
+        <div className="card p-4 space-y-3" style={{ borderLeft: '4px solid #25d366' }}>
+          <h3 className="font-bold text-sm flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <BookUser className="w-4 h-4" style={{ color: '#25d366' }} />
+            Contatos de Destino (WhatsApp)
+          </h3>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Salve contatos para enviar formulários/relatórios. Ao clicar em enviar, você escolhe para quem mandar.
+          </p>
+
+          {/* Formulário de cadastro */}
+          <div className="flex flex-wrap gap-2 items-end">
+            <div className="flex-1 min-w-36">
+              <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-muted)' }}>Nome do contato</label>
+              <input value={novoDestino.nome} onChange={e => setNovoDestino(n => ({ ...n, nome: e.target.value }))}
+                placeholder="Ex: Setor Técnico" className="input text-sm" />
+            </div>
+            <div className="flex-1 min-w-36">
+              <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-muted)' }}>Número WhatsApp</label>
+              <input value={novoDestino.numero} onChange={e => setNovoDestino(n => ({ ...n, numero: maskPhone(e.target.value) }))}
+                placeholder="(43) 99999-9999" className="input text-sm" maxLength={16} />
+            </div>
+            <button onClick={salvarDestino} className="btn-primary text-sm py-2">
+              {editDestinoIdx !== null ? 'Atualizar' : 'Salvar Contato'}
+            </button>
+            {editDestinoIdx !== null && (
+              <button onClick={() => { setEditDestinoIdx(null); setNovoDestino({ nome: '', numero: '' }); }}
+                className="btn-secondary text-sm py-2">Cancelar</button>
+            )}
+          </div>
+
+          {/* Lista de contatos salvos */}
+          {destinos.length > 0 && (
+            <div className="space-y-2 mt-2">
+              {destinos.map((d, i) => (
+                <div key={i} className="flex items-center justify-between p-2 rounded-lg" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+                  <div>
+                    <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{d.nome}</span>
+                    <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>{maskPhone(d.numero)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => editarDestino(i)} className="p-1 rounded" title="Editar" style={{ color: '#3b82f6' }}><Edit className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => removerDestino(i)} className="p-1 rounded" title="Remover" style={{ color: '#f87171' }}><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {destinos.length === 0 && (
+            <p className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>Nenhum contato salvo ainda.</p>
+          )}
+        </div>
+      )}
+
+      {/* ── Modal de escolha de destino ── */}
+      {sendModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <div className="card w-full max-w-sm p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>
+                {sendModal.tipo === 'prf' ? '📋 Enviar Pedido PRF' : '👋 Enviar Boas-vindas'}
+              </h3>
+              <button onClick={() => setSendModal(null)} style={{ color: 'var(--text-muted)' }}><X className="w-5 h-5" /></button>
+            </div>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Escolha para quem enviar a mensagem:</p>
+
+            {/* Enviar para o próprio cliente */}
+            <button onClick={enviarParaCliente} className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors"
+              style={{ background: '#dcfce7', border: '1.5px solid #86efac' }}>
+              <span style={{ fontSize: 22 }}>👤</span>
+              <div>
+                <div className="font-bold text-sm" style={{ color: '#166534' }}>Para o cliente</div>
+                <div className="text-xs" style={{ color: '#15803d' }}>{sendModal.client.name} — {fmtPhone(sendModal.client.whatsapp) || 'sem número'}</div>
+              </div>
+            </button>
+
+            {/* Destinos salvos */}
+            {destinos.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Ou para um contato salvo:</p>
+                {destinos.map((d, i) => (
+                  <button key={i} onClick={() => enviarParaDestino(d)} className="w-full flex items-center gap-3 p-3 rounded-xl text-left"
+                    style={{ background: 'var(--bg-secondary)', border: '1.5px solid var(--border)' }}>
+                    <span style={{ fontSize: 20 }}>📞</span>
+                    <div>
+                      <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{d.nome}</div>
+                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{maskPhone(d.numero)}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {destinos.length === 0 && (
+              <button onClick={() => { setSendModal(null); setShowDestinoPanel(true); }}
+                className="w-full text-sm py-2 rounded-lg" style={{ color: '#25d366', background: '#dcfce7', border: '1px dashed #86efac' }}>
+                + Salvar contatos de destino
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-48">
@@ -376,17 +562,21 @@ export default function Clients() {
                     <td className="table-cell"><StatusBadge s={c.status} /></td>
                     <td className="table-cell">
                       <div className="flex gap-2 items-center">
-                        <button onClick={() => openWhatsApp(c)} className="p-1.5 rounded-lg transition-colors" title="Enviar Boas-vindas"
+                        <button onClick={() => setSendModal({ client: c, tipo: 'boasvindas' })} className="p-1.5 rounded-lg transition-colors" title="Enviar Boas-vindas"
                           style={{ color: '#25d366', background: '#25d36615' }}>
                           <MessageCircle className="w-4 h-4" />
                         </button>
-                        <button onClick={() => openWhatsAppPRF(c)} className="p-1.5 rounded-lg transition-colors" title="Gerar Pedido PRF"
+                        <button onClick={() => setSendModal({ client: c, tipo: 'prf' })} className="p-1.5 rounded-lg transition-colors" title="Gerar Pedido PRF"
                           style={{ color: '#fff', background: '#25d366' }}>
                           <Send className="w-4 h-4" />
                         </button>
                         <button onClick={() => gerarPDFCliente(c)} className="p-1.5 rounded-lg transition-colors" title="Gerar PDF"
                           style={{ color: '#3b82f6', background: '#3b82f615' }}>
                           <FileText className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => { const url = `${window.location.origin}/relatorio-pedido/${c.id}`; navigator.clipboard.writeText(url); toast.success('Link copiado!'); }} className="p-1.5 rounded-lg transition-colors" title="Copiar Link do Relatório do Pedido"
+                          style={{ color: '#a855f7', background: '#a855f715' }}>
+                          <Link className="w-4 h-4" />
                         </button>
                         <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}>
                           <Edit className="w-4 h-4" />

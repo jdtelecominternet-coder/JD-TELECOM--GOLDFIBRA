@@ -3,6 +3,7 @@ import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useChat } from '../contexts/ChatContext';
 import { compressImage } from '../utils/imageUtils';
+import { useAutoSave } from '../utils/useAutoSave';
 
 const STATUS = {
   aguardando:      { label: '🔴 CTO com Problema',   color: '#dc2626', bg: '#fee2e2' },
@@ -33,8 +34,10 @@ function OSTimer({ startedAt }) {
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (!startedAt) return;
-    const start = new Date(startedAt).getTime();
-    const iv = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    // Fix: SQLite retorna UTC sem 'Z' — adiciona para interpretar corretamente
+    const iso = startedAt.endsWith('Z') || startedAt.includes('+') ? startedAt : startedAt.replace(' ', 'T') + 'Z';
+    const start = new Date(iso).getTime();
+    const iv = setInterval(() => setElapsed(Math.max(0, Math.floor((Date.now() - start) / 1000))), 1000);
     return () => clearInterval(iv);
   }, [startedAt]);
   const h = Math.floor(elapsed / 3600);
@@ -64,7 +67,8 @@ export default function NetworkService() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
   const [finishing, setFinishing] = useState(null);
-  const [finishForm, setFinishForm] = useState({ observations: '', photos: [], signal_after: '' });
+  const [finishForm, setFinishForm, clearFinishForm] = useAutoSave('net_finish_form', { observations: '', photos: [], signal_after: '' });
+  const [finishingId, setFinishingId, clearFinishingId] = useAutoSave('net_finishing_id', null);
   const [lightbox, setLightbox] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
   const fileRef = useRef();
@@ -78,6 +82,7 @@ export default function NetworkService() {
 
   useEffect(() => {
     load();
+    if (finishingId) { setFinishing(finishingId); setExpanded(finishingId); }
     const socket = chatCtx?.socket;
     if (socket) {
       socket.on('rede:nova_os', load);
@@ -112,8 +117,8 @@ export default function NetworkService() {
     }
     try {
       await api.put(`/maintenance/${id}/status`, { status, latitude: geo?.lat, longitude: geo?.lng, ...extra });
+      clearFinishForm(); clearFinishingId();
       setFinishing(null);
-      setFinishForm({ observations: '', photos: [], signal_after: '' });
       load();
     } catch(e) { alert(e.response?.data?.error || 'Erro ao atualizar'); }
     setActionLoading(null);
@@ -129,7 +134,7 @@ export default function NetworkService() {
   const pendentes = orders.filter(o => o.status === 'aguardando').length;
 
   return (
-    <div style={{ padding: 16, maxWidth: 900, margin: '0 auto', background: '#f1f5f9', minHeight: '100vh' }}>
+    <div style={{ padding: 16, maxWidth: 900, margin: '0 auto', background: 'var(--bg-main)', minHeight: '100vh' }}>
       {/* Título */}
       <div style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', borderRadius: 14, padding: '16px 20px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -166,9 +171,9 @@ export default function NetworkService() {
         })}
       </div>
 
-      {loading && <div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>Carregando...</div>}
-      {!loading && orders.length === 0 && (
-        <div style={{ textAlign: 'center', color: '#94a3b8', padding: 40, background: '#fff', borderRadius: 12 }}>
+      {loading && <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>Carregando...</div>}
+        {!loading && orders.length === 0 && (
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40, background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border)' }}>
           Nenhuma ordem no momento.
         </div>
       )}
@@ -182,7 +187,7 @@ export default function NetworkService() {
         const isMine = mo.assigned_tech_id === user?.id;
 
         return (
-          <div key={mo.id} style={{ background: '#fff', borderRadius: 14, marginBottom: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.07)', overflow: 'hidden', border: `2px solid ${st.color}40` }}>
+          <div key={mo.id} style={{ background: 'var(--bg-card)', borderRadius: 14, marginBottom: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.07)', overflow: 'hidden', border: `2px solid ${st.color}40` }}>
             {/* Status banner */}
             <div style={{ background: st.bg, padding: '6px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 800, color: st.color, fontSize: 13 }}>{st.label}</span>
@@ -194,42 +199,42 @@ export default function NetworkService() {
               onClick={() => setExpanded(isExp ? null : mo.id)}>
 
               <div style={{ flex: '1 1 100px' }}>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>Nº OS</div>
-                <div style={{ fontWeight: 800, color: '#0f172a' }}>{mo.readable_id}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Nº OS</div>
+                <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{mo.readable_id}</div>
               </div>
               <div style={{ flex: '1 1 120px' }}>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>CTO</div>
-                <div style={{ fontWeight: 800, color: '#334155', fontSize: 16 }}>{mo.cto_number}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>CTO</div>
+                <div style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: 16 }}>{mo.cto_number}</div>
               </div>
               <div style={{ flex: '2 1 160px' }}>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>Problema</div>
-                <div style={{ fontWeight: 600, color: '#334155', fontSize: 13 }}>{PROBLEM_LABELS[mo.problem_type] || mo.problem_type}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Problema</div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{PROBLEM_LABELS[mo.problem_type] || mo.problem_type}</div>
               </div>
               <div style={{ flex: '1 1 120px' }}>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>Aberto por</div>
-                <div style={{ fontWeight: 600, color: '#334155', fontSize: 13 }}>{mo.origin_tech_name || '—'}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Aberto por</div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{mo.origin_tech_name || '—'}</div>
               </div>
               <div style={{ flex: '1 1 120px' }}>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>Atribuído a</div>
-                <div style={{ fontWeight: 600, color: '#334155', fontSize: 13 }}>{mo.assigned_tech_name || 'Aguardando'}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Atribuído a</div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{mo.assigned_tech_name || 'Aguardando'}</div>
               </div>
               <div style={{ flex: '1 1 100px' }}>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>Abertura</div>
-                <div style={{ fontSize: 12, color: '#334155' }}>{fmtDateTime(mo.created_at)}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Abertura</div>
+                <div style={{ fontSize: 12, color: 'var(--text-primary)' }}>{fmtDateTime(mo.created_at)}</div>
               </div>
-              <span style={{ fontSize: 16, color: '#94a3b8' }}>{isExp ? '▲' : '▼'}</span>
+              <span style={{ fontSize: 16, color: 'var(--text-muted)' }}>{isExp ? '▲' : '▼'}</span>
             </div>
 
             {/* Expandido */}
             {isExp && (
-              <div style={{ borderTop: '1px solid #f1f5f9', padding: '16px 18px', background: '#fafafa' }}>
+              <div style={{ borderTop: '1px solid var(--border)', padding: '16px 18px', background: 'var(--bg-main)' }}>
                 {/* Timer */}
                 {mo.started_at && mo.status !== 'concluido' && <OSTimer startedAt={mo.started_at} />}
 
                 {/* Descrição */}
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Descrição</div>
-                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>{mo.description}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Descrição</div>
+                  <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--text-primary)' }}>{mo.description}</div>
                 </div>
 
                 {/* Mapa */}
@@ -284,13 +289,19 @@ export default function NetworkService() {
                       </button>
                     )}
                     {mo.status === 'em_deslocamento' && isMine && (
-                      <button onClick={() => updateStatus(mo.id, 'em_andamento')} disabled={!!actionLoading}
-                        style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#8b5cf6', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                        🔧 Iniciar Serviço (Cheguei)
-                      </button>
+                      <>
+                        <button onClick={() => openRoute(mo.latitude_origin, mo.longitude_origin)}
+                          style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#10b981', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>
+                          🚗 Iniciar Rota
+                        </button>
+                        <button onClick={() => updateStatus(mo.id, 'em_andamento')} disabled={!!actionLoading}
+                          style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#8b5cf6', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                          🔧 Cheguei / Executar Serviço
+                        </button>
+                      </>
                     )}
                     {mo.status === 'em_andamento' && isMine && finishing !== mo.id && (
-                      <button onClick={() => { setFinishing(mo.id); setFinishForm({ observations: '', photos: [] }); }}
+                      <button onClick={() => { setFinishing(mo.id); setFinishingId(mo.id); setFinishForm({ observations: '', photos: [], signal_after: '' }); }}
                         style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                         🟢 Marcar como Sinal Normalizado
                       </button>
@@ -338,11 +349,11 @@ export default function NetworkService() {
                     <textarea value={finishForm.observations} onChange={e => setFinishForm(f => ({ ...f, observations: e.target.value }))}
                       placeholder="Ex: Fibra rompida corrigida, sinal restabelecido. PowerMeter mostrando -18dBm..."
                       rows={3}
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #86efac', fontSize: 13, background: '#fff', color: '#1e293b', resize: 'vertical', boxSizing: 'border-box', marginBottom: 12 }} />
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #86efac', fontSize: 13, background: 'var(--bg-card)', color: 'var(--text-primary)', resize: 'vertical', boxSizing: 'border-box', marginBottom: 12 }} />
 
                     <div style={{ display: 'flex', gap: 10 }}>
                       <button onClick={() => setFinishing(null)}
-                        style={{ flex: 1, padding: 10, borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
+                        style={{ flex: 1, padding: 10, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontWeight: 700, cursor: 'pointer' }}>
                         Cancelar
                       </button>
                       <button

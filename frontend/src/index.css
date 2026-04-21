@@ -168,3 +168,7 @@ textarea::placeholder { color: var(--text-muted); }
   }
   .input, select { min-height: 44px; font-size: 16px; }
 }
+
+/* ─── Esconder scrollbars (mantém scroll funcional) ─────────────────────── */
+::-webkit-scrollbar { width: 0px; height: 0px; background: transparent; }
+* { scrollbar-width: none; -ms-overflow-style: none; }

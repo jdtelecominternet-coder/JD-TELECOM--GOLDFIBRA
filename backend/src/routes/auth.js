@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getDb } = require('../database');
-const { JWT_SECRET } = require('../middleware/auth');
+const { JWT_SECRET, authMiddleware } = require('../middleware/auth');
 
 router.post('/login', (req, res) => {
   const db = getDb();
@@ -30,10 +30,24 @@ router.post('/login', (req, res) => {
     { expiresIn: '30d' }
   );
 
+  // Garante coluna active_token existe
+  try { db.prepare("ALTER TABLE users ADD COLUMN active_token TEXT").run(); } catch {}
+
+  // Salva o novo token (derruba sessão anterior automaticamente)
+  db.prepare('UPDATE users SET active_token=? WHERE id=?').run(token, user.id);
+
   res.json({
     token,
     user: { id: user.id, jd_id: user.jd_id, name: user.name, role: user.role, photo_url: user.photo_url, permissions }
   });
 });
 
+// Logout — limpa o token ativo
+router.post('/logout', authMiddleware, (req, res) => {
+  const db = getDb();
+  try { db.prepare('UPDATE users SET active_token=NULL WHERE id=?').run(req.user.id); } catch {}
+  res.json({ ok: true });
+});
+
 module.exports = router;
+

@@ -46,8 +46,14 @@ export function AuthProvider({ children }) {
     }).catch(() => {});
   }, []);
 
+  function loginWithToken(token, userData) {
+    localStorage.setItem('jd_token', token);
+    localStorage.setItem('jd_user', JSON.stringify(userData));
+    setUser(userData);
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, updateUser }}>
+    <AuthContext.Provider value={{ user, login, loginWithToken, logout, loading, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

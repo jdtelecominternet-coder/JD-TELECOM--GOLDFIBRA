@@ -270,8 +270,8 @@ export default function Orders() {
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto" style={{ overflowX: 'auto' }}>
+            <table className="w-full" style={{ minWidth: 900 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
                   <th className="table-header">ID Digitável</th>
@@ -312,12 +312,14 @@ export default function Orders() {
                         <button onClick={() => openView(o)} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }} title="Detalhes">
                           <Eye className="w-4 h-4" />
                         </button>
+                        {(user.role === 'admin' || user.role === 'tecnico') && (
+                          <button onClick={() => openTransferModal(o)}
+                            className="p-1.5 rounded-lg" style={{ color: '#60a5fa' }} title="Transferir / Manobrar OS">
+                            <ArrowRightLeft className="w-4 h-4" />
+                          </button>
+                        )}
                         {user.role === 'admin' && (
                           <>
-                            <button onClick={() => openTransferModal(o)}
-                              className="p-1.5 rounded-lg" style={{ color: '#60a5fa' }} title="Transferir / Manobrar OS">
-                              <ArrowRightLeft className="w-4 h-4" />
-                            </button>
                             <select onChange={e => e.target.value && updateStatus(o.id, e.target.value)} value=""
                               className="text-xs rounded px-1"
                               style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>

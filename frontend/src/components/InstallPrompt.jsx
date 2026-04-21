@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Download, Share, Monitor } from 'lucide-react';
 
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -7,28 +8,40 @@ const isStandalone =
   window.matchMedia('(display-mode: standalone)').matches ||
   window.navigator.standalone === true;
 
+// Rotas públicas onde o prompt NÃO deve aparecer
+const PUBLIC_ROUTES = ['/solicitar'];
+
 export default function InstallPrompt() {
+  const location = useLocation();
   const [show, setShow]     = useState(false);
   const [prompt, setPrompt] = useState(null);
 
+  // Não exibir em rotas públicas (formulário do vendedor)
+  const isPublicPage = PUBLIC_ROUTES.some(r => location.pathname.startsWith(r));
+
   useEffect(() => {
-    if (isStandalone) return;
-
-    if (window.__pwaPrompt) setPrompt(window.__pwaPrompt);
-
+    // SEMPRE captura o evento para bloquear o prompt nativo do browser
     const handler = (e) => {
       e.preventDefault();
       window.__pwaPrompt = e;
-      setPrompt(e);
+      if (!isStandalone && !isPublicPage) {
+        setPrompt(e);
+        setShow(true); // só mostra quando o browser realmente suporta instalar
+      }
     };
     window.addEventListener('beforeinstallprompt', handler);
     window.addEventListener('appinstalled', () => setShow(false));
 
-    // Mostra imediatamente ao abrir
-    setShow(true);
+    // Só mostra se já tinha um prompt salvo E não é página pública
+    if (!isStandalone && !isPublicPage && window.__pwaPrompt) {
+      setPrompt(window.__pwaPrompt);
+      setShow(true);
+    } else {
+      setShow(false);
+    }
 
     return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
+  }, [isPublicPage]);
 
   async function handleInstall() {
     const p = prompt || window.__pwaPrompt;
@@ -39,11 +52,11 @@ export default function InstallPrompt() {
     }
   }
 
-  if (!show) return null;
+  if (!show || isPublicPage) return null;
 
   const hasNativePrompt = !!(prompt || window.__pwaPrompt);
 
-  // ── DESKTOP (PC / notebook) ──
+  // ── DESKTOP ──
   if (!isMobile) {
     return (
       <>
@@ -94,32 +107,19 @@ export default function InstallPrompt() {
             <button onClick={handleInstall} style={{
               width: '100%',
               background: 'linear-gradient(135deg, #f59e0b, #f97316)',
-              color: '#000',
-              border: 'none',
-              borderRadius: '14px',
-              padding: '16px',
-              fontWeight: 900,
-              fontSize: '15px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              marginBottom: '10px',
+              color: '#000', border: 'none', borderRadius: '14px',
+              padding: '16px', fontWeight: 900, fontSize: '15px',
+              cursor: 'pointer', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', gap: '8px', marginBottom: '10px',
               boxShadow: '0 4px 20px rgba(245,158,11,0.4)',
             }}>
               <Download size={18} /> Instalar agora
             </button>
           ) : (
             <div style={{
-              background: 'rgba(255,255,255,0.07)',
-              borderRadius: '14px',
-              padding: '14px',
-              marginBottom: '14px',
-              textAlign: 'left',
-              fontSize: '13px',
-              color: 'rgba(255,255,255,0.85)',
-              lineHeight: 1.8,
+              background: 'rgba(255,255,255,0.07)', borderRadius: '14px',
+              padding: '14px', marginBottom: '14px', textAlign: 'left',
+              fontSize: '13px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.8,
             }}>
               <p style={{ margin: '0 0 6px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Monitor size={14} /> Como instalar no PC:
@@ -135,10 +135,8 @@ export default function InstallPrompt() {
             background: 'rgba(255,255,255,0.07)',
             color: 'rgba(255,255,255,0.5)',
             border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: '14px',
-            padding: '13px',
-            fontSize: '14px',
-            cursor: 'pointer',
+            borderRadius: '14px', padding: '13px',
+            fontSize: '14px', cursor: 'pointer',
           }}>
             Agora não
           </button>
@@ -147,7 +145,7 @@ export default function InstallPrompt() {
     );
   }
 
-  // ── MOBILE (Android / iPhone) ──
+  // ── MOBILE ──
   return (
     <>
       <div onClick={() => setShow(false)} style={{
@@ -198,7 +196,6 @@ export default function InstallPrompt() {
           Adicione à sua tela inicial e acesse<br />como um aplicativo instalado
         </p>
 
-        {/* Android com prompt nativo */}
         {!isIOS && hasNativePrompt && (
           <button onClick={handleInstall} style={{
             width: '100%',
@@ -213,32 +210,26 @@ export default function InstallPrompt() {
           </button>
         )}
 
-        {/* Android sem prompt */}
         {!isIOS && !hasNativePrompt && (
           <div style={{
             background: 'rgba(255,255,255,0.07)', borderRadius: '16px',
             padding: '16px', marginBottom: '16px', textAlign: 'left',
             fontSize: '13px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.8,
           }}>
-            <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: '14px', color: '#fff' }}>
-              Como instalar no Android:
-            </p>
+            <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: '14px', color: '#fff' }}>Como instalar no Android:</p>
             <p style={{ margin: 0 }}>1. Toque nos <b>⋮ três pontos</b> do Chrome</p>
             <p style={{ margin: 0 }}>2. Toque em <b>"Adicionar à tela inicial"</b></p>
             <p style={{ margin: 0 }}>3. Confirme tocando em <b>Adicionar ✅</b></p>
           </div>
         )}
 
-        {/* iOS */}
         {isIOS && (
           <div style={{
             background: 'rgba(255,255,255,0.07)', borderRadius: '16px',
             padding: '16px', marginBottom: '16px', textAlign: 'left',
             fontSize: '13px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.8,
           }}>
-            <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: '14px', color: '#fff' }}>
-              Como instalar no iPhone:
-            </p>
+            <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: '14px', color: '#fff' }}>Como instalar no iPhone:</p>
             <p style={{ margin: 0 }}>1. Toque em <Share size={13} style={{ display:'inline', verticalAlign:'middle' }} /> <b>Compartilhar</b> no Safari</p>
             <p style={{ margin: 0 }}>2. Role e toque em <b>"Adicionar à Tela Início"</b></p>
             <p style={{ margin: 0 }}>3. Toque em <b>Adicionar ✅</b></p>

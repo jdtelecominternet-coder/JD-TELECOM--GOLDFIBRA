@@ -143,14 +143,29 @@ export default function CTOOccurrences() {
         const pt = PROBLEM_LABELS[item.problem_type] || { label: item.problem_type, color: '#64748b', emoji: '⚠️' };
         const photos = (() => { try { return JSON.parse(item.photos || '[]'); } catch { return []; } })();
         const isExp = expanded === item.id;
+        const isResolvido = item.status === 'resolvido';
+
+        // Se resolvido → borda e badge verde
+        const cardBorder = isResolvido ? '#16a34a40' : `${pt.color}30`;
+        const badgeBg    = isResolvido ? '#16a34a20' : `${pt.color}20`;
+        const badgeColor = isResolvido ? '#16a34a'   : pt.color;
+        const badgeEmoji = isResolvido ? '🟢' : pt.emoji;
+        const badgeLabel = isResolvido ? 'Sinal Normalizado' : pt.label;
 
         return (
-          <div key={item.id} className="card p-0 overflow-hidden" style={{ border: `1.5px solid ${pt.color}30` }}>
+          <div key={item.id} className="card p-0 overflow-hidden" style={{ border: `1.5px solid ${cardBorder}` }}>
+            {/* Banner verde no topo se resolvido */}
+            {isResolvido && (
+              <div style={{ background: '#16a34a20', padding: '4px 16px', fontSize: 12, fontWeight: 700, color: '#16a34a', display: 'flex', justifyContent: 'space-between' }}>
+                <span>🟢 RESOLVIDO — Sinal Normalizado</span>
+                {item.resolved_at && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{fmtDateTime(item.resolved_at)}</span>}
+              </div>
+            )}
             <div className="p-4 flex flex-wrap gap-3 items-center cursor-pointer"
               onClick={() => setExpanded(isExp ? null : item.id)}>
 
-              <span className="px-3 py-1 rounded-full text-xs font-bold" style={{ background: `${pt.color}20`, color: pt.color }}>
-                {pt.emoji} {pt.label}
+              <span className="px-3 py-1 rounded-full text-xs font-bold" style={{ background: badgeBg, color: badgeColor }}>
+                {badgeEmoji} {badgeLabel}
               </span>
 
               <div className="flex-1 min-w-28">

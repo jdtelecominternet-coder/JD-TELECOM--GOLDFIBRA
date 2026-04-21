@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ChatProvider } from './contexts/ChatContext';
@@ -26,6 +26,11 @@ import SettingsPage from './pages/Settings';
 import SalesManagement from './pages/SalesManagement';
 import ServiceHistory from './pages/ServiceHistory';
 import InstallPrompt from './components/InstallPrompt';
+import Providers from './pages/Providers';
+import Provisioning from './pages/Provisioning';
+import QualityControl from './pages/QualityControl';
+import StockAdmin from './pages/StockAdmin';
+import RelatorioCliente from './pages/RelatorioCliente';
 
 function PrivateRoute({ children, roles }) {
   const { user } = useAuth();
@@ -40,6 +45,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
       <Route path="/relatorio/:id" element={<Relatorio />} />
+      <Route path="/relatorio-pedido/:id" element={<RelatorioCliente />} />
       <Route path="/solicitar" element={<Solicitar />} />
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
@@ -60,6 +66,10 @@ function AppRoutes() {
         <Route path="chat"      element={<PrivateRoute roles={['admin','tecnico','vendedor']}><Chat /></PrivateRoute>} />
         <Route path="ai"        element={<PrivateRoute roles={['admin','tecnico','vendedor']}><AIAssistant /></PrivateRoute>} />
         <Route path="profile"   element={<Profile />} />
+        <Route path="providers" element={<PrivateRoute roles={['admin']}><Providers /></PrivateRoute>} />
+        <Route path="provisioning" element={<PrivateRoute roles={['admin','tecnico']}><Provisioning /></PrivateRoute>} />
+        <Route path="quality-control" element={<PrivateRoute roles={['admin']}><QualityControl /></PrivateRoute>} />
+        <Route path="stock-admin"     element={<PrivateRoute roles={['admin']}><StockAdmin /></PrivateRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
@@ -80,7 +90,7 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <Inner />
-          <InstallPrompt />
+          <InstallPromptConditional />
           <Toaster
             position="top-right"
             toastOptions={{
@@ -92,4 +102,11 @@ export default function App() {
       </AuthProvider>
     </ThemeProvider>
   );
+}
+
+// Só monta o InstallPrompt fora de rotas públicas
+function InstallPromptConditional() {
+  const { pathname } = useLocation();
+  if (pathname.startsWith('/solicitar') || pathname.startsWith('/relatorio')) return null;
+  return <InstallPrompt />;
 }

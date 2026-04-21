@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { Plus, Search, Edit, Trash2, X, Eye, EyeOff, Shield, ShoppingBag, Wrench, UserX, CheckCircle, XCircle, Settings2, Globe, RotateCcw, Network } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, X, Eye, EyeOff, Shield, ShoppingBag, Wrench, UserX, CheckCircle, XCircle, Settings2, Globe, RotateCcw, Network, Package, RefreshCw, ArrowRightLeft, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import AdminDeleteModal from '../components/AdminDeleteModal';
 
-const roleLabel = { admin: 'Administrador', vendedor: 'Vendedor', tecnico: 'Técnico', manutencao: 'Técnico de Rede' };
-const roleIcon  = { admin: Shield, vendedor: ShoppingBag, tecnico: Wrench, manutencao: Network };
+const roleLabel = { admin: 'Administrador', vendedor: 'Vendedor', tecnico: 'Técnico', manutencao: 'Técnico de Rede', qualidade: 'Controle de Qualidade' };
+const roleIcon  = { admin: Shield, vendedor: ShoppingBag, tecnico: Wrench, manutencao: Network, qualidade: CheckCircle };
 
 // Permissões padrão por role
 const defaultPerms = {
@@ -13,36 +13,44 @@ const defaultPerms = {
   vendedor:   { clients: true, plans: true, orders: true, technical: false, reports: false, chat: false, gerar_link: true },
   tecnico:    { clients: false, plans: true, orders: false, technical: true, reports: false, chat: true, gerar_link: false },
   manutencao: { clients: false, plans: false, orders: false, technical: false, reports: false, chat: true, gerar_link: false, servico_rede: true },
+  qualidade:  { clients: false, plans: false, orders: false, technical: false, reports: true, chat: true, gerar_link: false, quality_control: true },
 };
 const PERM_LABELS = [
-  { key: 'clients',      label: 'Clientes',              icon: '👥' },
-  { key: 'plans',        label: 'Planos',                 icon: '📦' },
-  { key: 'orders',       label: 'Ordens de Serviço',      icon: '📋' },
-  { key: 'technical',    label: 'Módulo Técnico',          icon: '🛠️' },
-  { key: 'servico_rede', label: 'Módulo Serviço de Rede',  icon: '🌐' },
-  { key: 'reports',      label: 'Relatórios',              icon: '📊' },
-  { key: 'chat',         label: 'Chat Interno',            icon: '💬' },
-  { key: 'gerar_link',   label: 'Gerar Link de Cadastro',  icon: '🔗' },
+  { key: 'clients',         label: 'Clientes',                icon: '👥' },
+  { key: 'plans',           label: 'Planos',                  icon: '📦' },
+  { key: 'orders',          label: 'Ordens de Serviço',       icon: '📋' },
+  { key: 'technical',       label: 'Módulo Técnico',           icon: '🛠️' },
+  { key: 'servico_rede',    label: 'Módulo Serviço de Rede',  icon: '🌐' },
+  { key: 'quality_control', label: 'Controle de Qualidade',   icon: '✅' },
+  { key: 'reports',         label: 'Relatórios',              icon: '📊' },
+  { key: 'chat',            label: 'Chat Interno',            icon: '💬' },
+  { key: 'gerar_link',      label: 'Gerar Link de Cadastro',  icon: '🔗' },
 ];
 
 const GLOBAL_PERM_LABELS = {
   default: [
-    { key: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { key: 'users', label: 'Gerenciar Usuarios', icon: '👥' },
-    { key: 'clients', label: 'Clientes', icon: '🤝' },
-    { key: 'plans', label: 'Planos', icon: '📦' },
-    { key: 'orders', label: 'Ordens de Servico', icon: '📋' },
-    { key: 'transfer', label: 'Transferir OS', icon: '🔄' },
-    { key: 'technical', label: 'Modulo Tecnico', icon: '🛠️' },
-    { key: 'reports', label: 'Relatorios', icon: '📈' },
-    { key: 'chat', label: 'Chat', icon: '💬' },
-    { key: 'settings', label: 'Configuracoes', icon: '⚙️' },
+    { key: 'dashboard',       label: 'Dashboard',             icon: '📊' },
+    { key: 'users',           label: 'Gerenciar Usuarios',    icon: '👥' },
+    { key: 'clients',         label: 'Clientes',              icon: '🤝' },
+    { key: 'plans',           label: 'Planos',                icon: '📦' },
+    { key: 'orders',          label: 'Ordens de Servico',     icon: '📋' },
+    { key: 'transfer',        label: 'Transferir OS',         icon: '🔄' },
+    { key: 'technical',       label: 'Modulo Tecnico',        icon: '🛠️' },
+    { key: 'reports',         label: 'Relatorios',            icon: '📈' },
+    { key: 'chat',            label: 'Chat',                  icon: '💬' },
+    { key: 'settings',        label: 'Configuracoes',         icon: '⚙️' },
   ],
   manutencao: [
     { key: 'servico_rede', label: 'Modulo Serv. de Rede', icon: '🌐' },
     { key: 'chat',         label: 'Chat',                 icon: '💬' },
     { key: 'reports',      label: 'Relatorios',           icon: '📈' },
     { key: 'settings',     label: 'Configuracoes',        icon: '⚙️' },
+  ],
+  qualidade: [
+    { key: 'quality_control', label: 'Controle de Qualidade', icon: '✅' },
+    { key: 'chat',            label: 'Chat',                  icon: '💬' },
+    { key: 'reports',         label: 'Relatorios',            icon: '📈' },
+    { key: 'settings',        label: 'Configuracoes',         icon: '⚙️' },
   ],
 };
 export default function Users() {
@@ -60,16 +68,87 @@ export default function Users() {
   const [globalPermsTab, setGlobalPermsTab] = useState("vendedor");
   const [globalPerms, setGlobalPerms] = useState(null);
   const [deleteModal, setDeleteModal] = useState(null); // { id, name, jd_id }
+  const [adminAuthModal, setAdminAuthModal] = useState(null); // user to edit after auth
+  const [adminAuthPw, setAdminAuthPw] = useState('');
+  const [adminAuthError, setAdminAuthError] = useState('');
   const [savingGlobal, setSavingGlobal] = useState(false);
+  // ── Painel Estoque Admin ──
+  const [stockOpen, setStockOpen] = useState(false);
+  const [allStock, setAllStock] = useState([]);
+  const [stockLoading, setStockLoading] = useState(false);
+  const [stockFilter, setStockFilter] = useState('');
+  const [assignModal, setAssignModal] = useState(null); // { stock_id, current_tech }
+  const [assignTechId, setAssignTechId] = useState('');
+  const [batchModal, setBatchModal] = useState(false);
+  const [batchTechId, setBatchTechId] = useState('');
+  const [batchText, setBatchText] = useState('');
+  const [batchSaving, setBatchSaving] = useState(false);
+
+  async function loadAllStock() {
+    setStockLoading(true);
+    try { const r = await api.get('/stock'); setAllStock(r.data); }
+    catch { toast.error('Erro ao carregar estoque'); }
+    finally { setStockLoading(false); }
+  }
+  async function handleAssign() {
+    if (!assignTechId) return toast.error('Selecione um técnico');
+    try {
+      await api.post('/stock/assign', { stock_id: assignModal.stock_id, tech_id: assignTechId });
+      toast.success('ONU transferida!');
+      setAssignModal(null); setAssignTechId('');
+      loadAllStock();
+    } catch (err) { toast.error(err.response?.data?.error || 'Erro'); }
+  }
+  async function handleDeleteStock(id) {
+    try { await api.delete(`/stock/${id}`); toast.success('ONU removida'); loadAllStock(); }
+    catch { toast.error('Erro ao remover'); }
+  }
+  async function handleBatchAdmin() {
+    if (!batchTechId) return toast.error('Selecione o técnico destino');
+    const lines = batchText.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return toast.error('Informe ao menos um MAC');
+    const items = lines.map(line => {
+      const parts = line.split(/[\t,;]/);
+      return { mac_address: parts[0]?.trim(), modelo: parts[1]?.trim() || '', serial: parts[2]?.trim() || '' };
+    });
+    setBatchSaving(true);
+    try {
+      const r = await api.post('/stock/batch', { items, tech_id: batchTechId });
+      toast.success(`${r.data.ok.length} ONUs cadastradas para o técnico!`);
+      if (r.data.errors?.length) toast.error(`${r.data.errors.length} erros.`);
+      setBatchModal(false); setBatchText(''); setBatchTechId('');
+      loadAllStock();
+    } catch (err) { toast.error(err.response?.data?.error || 'Erro'); }
+    finally { setBatchSaving(false); }
+  }
 
   async function load() {
     try { const r = await api.get('/users'); setUsers(r.data); } catch {}
     finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
-  useEffect(() => { api.get("/settings/role-permissions").then(r => setGlobalPerms(r.data)).catch(() => {}); }, []);
+  useEffect(() => {
+    api.get("/settings/role-permissions").then(r => {
+      const data = r.data || {};
+      // Garante que todos os perfis existem com defaults
+      const merged = {
+        vendedor:   { clients: true, plans: true, orders: true, technical: false, reports: false, chat: false, gerar_link: true, ...( data.vendedor   || {}) },
+        tecnico:    { clients: false, plans: true, orders: false, technical: true, reports: false, chat: true, gerar_link: false, ...(data.tecnico    || {}) },
+        manutencao: { servico_rede: true, chat: true, reports: false, settings: false,                         ...(data.manutencao || {}) },
+        qualidade:  { quality_control: true, chat: true, reports: false, settings: false,                      ...(data.qualidade  || {}) },
+      };
+      setGlobalPerms(merged);
+    }).catch(() => {
+      setGlobalPerms({
+        vendedor:   { clients: true, plans: true, orders: true, technical: false, reports: false, chat: false, gerar_link: true },
+        tecnico:    { clients: false, plans: true, orders: false, technical: true, reports: false, chat: true, gerar_link: false },
+        manutencao: { servico_rede: true, chat: true, reports: false, settings: false },
+        qualidade:  { quality_control: true, chat: true, reports: false, settings: false },
+      });
+    });
+  }, []);
   async function saveGlobalPerms(role) { setSavingGlobal(true); try { await api.put("/settings/role-permissions", { role, permissions: globalPerms[role] }); toast.success("Permissoes salvas!"); } catch { toast.error("Erro"); } finally { setSavingGlobal(false); } }
-  function toggleGlobalPerm(role, key) { setGlobalPerms(prev => ({ ...prev, [role]: { ...prev[role], [key]: !prev[role][key] } })); }
+  function toggleGlobalPerm(role, key) { setGlobalPerms(prev => ({ ...prev, [role]: { ...(prev[role] || {}), [key]: !(prev[role] || {})[key] } })); }
 
   async function save() {
     if (!form.name.trim()) return toast.error('Nome obrigatório');
@@ -115,7 +194,11 @@ export default function Users() {
 
   function openPerms(u) {
     const base = defaultPerms[u.role] || {};
-    const custom = u.permissions || {};
+    let custom = {};
+    try {
+      const raw = u.permissions;
+      custom = typeof raw === 'string' ? JSON.parse(raw) : (raw || {});
+    } catch { custom = {}; }
     setPermForm({ ...base, ...custom });
     setPermModal(u);
   }
@@ -144,12 +227,32 @@ export default function Users() {
     setModal('create');
   }
   function openEdit(u) {
+    if (u.role === 'admin') {
+      setAdminAuthPw('');
+      setAdminAuthError('');
+      setAdminAuthModal(u);
+      return;
+    }
     setForm({ name: u.name, role: u.role, password: '', active: u.active });
     setShowPw(false);
     setModal(u);
   }
 
+  async function confirmAdminAuth() {
+    try {
+      await api.post('/users/verify-admin-password', { password: adminAuthPw });
+      const u = adminAuthModal;
+      setAdminAuthModal(null);
+      setForm({ name: u.name, role: u.role, password: '', active: u.active });
+      setShowPw(false);
+      setModal(u);
+    } catch {
+      setAdminAuthError('Senha incorreta. Tente novamente.');
+    }
+  }
+
   return (
+    <>
     <div className="space-y-5">
       {globalPerms && (
         <div className="card p-5 mb-2">
@@ -161,9 +264,9 @@ export default function Users() {
             </div>
           </div>
           <div className="flex gap-2 mb-3 flex-wrap">
-            {["vendedor","tecnico","manutencao"].map(r=>(
+            {["vendedor","tecnico","manutencao","qualidade"].map(r=>(
               <button key={r} onClick={()=>setGlobalPermsTab(r)} className={`px-4 py-1.5 rounded-lg text-sm font-semibold ${globalPermsTab===r?"bg-blue-600 text-white":"opacity-60"}`} style={globalPermsTab!==r?{background:"var(--bg-main)",color:"var(--text-secondary)",border:"1px solid var(--border)"}:{}}>
-                {r==="vendedor"?"Vendedor": r==="tecnico"?"Tecnico":"Tec. de Rede"}
+                {r==="vendedor"?"Vendedor": r==="tecnico"?"Técnico": r==="manutencao"?"Tec. de Rede":"Ctrl. Qualidade"}
               </button>
             ))}
           </div>
@@ -199,6 +302,7 @@ export default function Users() {
           <option value="vendedor">Vendedor</option>
           <option value="tecnico">Técnico</option>
           <option value="manutencao">Técnico de Rede</option>
+          <option value="qualidade">Controle de Qualidade</option>
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="input w-auto">
           <option value="">Todos os Status</option>
@@ -260,25 +364,34 @@ export default function Users() {
                       </td>
                       <td className="table-cell">
                         <div className="flex items-center gap-2">
+                          {/* Botão editar — sempre visível, mas admin principal exige senha */}
                           <button onClick={() => openEdit(u)} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }} title="Editar">
                             <Edit className="w-4 h-4" />
                           </button>
                           <button onClick={() => openPerms(u)} className="p-1.5 rounded-lg" style={{ color: '#60a5fa' }} title="Configurar permissões">
                             <Settings2 className="w-4 h-4" />
                           </button>
-                          <button onClick={() => toggleActive(u)} className="p-1.5 rounded-lg"
-                            style={{ color: u.active ? '#f59e0b' : '#4ade80' }} title={u.active ? 'Desativar' : 'Ativar'}>
-                            {u.active ? <UserX className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                          </button>
-                          {u.jd_id !== 'JD000001' && u.role === 'tecnico' && (
+                          {/* Desativar — bloqueado para admin principal */}
+                          {u.jd_id !== '000001' && u.jd_id !== 'JD000001' && (
+                            <button onClick={() => toggleActive(u)} className="p-1.5 rounded-lg"
+                              style={{ color: u.active ? '#f59e0b' : '#4ade80' }} title={u.active ? 'Desativar' : 'Ativar'}>
+                              {u.active ? <UserX className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                            </button>
+                          )}
+                          {u.jd_id !== '000001' && u.jd_id !== 'JD000001' && u.role === 'tecnico' && (
                             <button onClick={() => resetTechOS(u)} className="p-1.5 rounded-lg" style={{ color: '#f59e0b' }} title="Zerar OS e valores do técnico">
                               <RotateCcw className="w-4 h-4" />
                             </button>
                           )}
-                          {u.jd_id !== 'JD000001' && (
+                          {/* Excluir — bloqueado para admin principal */}
+                          {u.jd_id !== '000001' && u.jd_id !== 'JD000001' && (
                             <button onClick={() => setDeleteModal({ id: u.id, name: u.name, jd_id: u.jd_id })} className="p-1.5 rounded-lg" style={{ color: '#f87171' }} title="Excluir permanentemente">
                               <Trash2 className="w-4 h-4" />
                             </button>
+                          )}
+                          {/* Ícone de cadeado para admin principal */}
+                          {(u.jd_id === '000001' || u.jd_id === 'JD000001') && (
+                            <span title="Administrador Principal protegido" style={{ fontSize: 16 }}>🔒</span>
                           )}
                         </div>
                       </td>
@@ -330,6 +443,7 @@ export default function Users() {
                   <option value="vendedor">Vendedor</option>
                   <option value="tecnico">Técnico</option>
                   <option value="manutencao">Técnico de Rede</option>
+          <option value="qualidade">Controle de Qualidade</option>
                   <option value="admin">Administrador</option>
                 </select>
               </div>
@@ -476,7 +590,8 @@ export default function Users() {
               {PERM_LABELS.map(({ key, label, icon }) => {
                 const isDefault = defaultPerms[permModal.role]?.[key] ?? false;
                 const isOn = permForm[key] ?? isDefault;
-                const isCustomized = permModal.permissions && permModal.permissions[key] !== undefined && permModal.permissions[key] !== isDefault;
+                const _perms = (() => { try { const r = permModal.permissions; return typeof r === 'string' ? JSON.parse(r) : (r || {}); } catch { return {}; } })();
+                const isCustomized = _perms[key] !== undefined && _perms[key] !== isDefault;
                 return (
                   <div key={key} className="flex items-center justify-between p-3 rounded-xl"
                     style={{ background: 'var(--bg-input)', border: `1px solid ${isOn ? 'var(--accent)44' : 'var(--border)'}` }}>
@@ -520,6 +635,227 @@ export default function Users() {
         itemName={deleteModal ? `${deleteModal.name} (${deleteModal.jd_id})` : 'este usuário'}
         onConfirmed={() => deleteUser(deleteModal)}
       />
+
+      {/* Modal de autenticação para editar admin */}
+      {adminAuthModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 380, border: '1.5px solid #3b82f680' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <Shield style={{ color: '#3b82f6', width: 22, height: 22 }} />
+              <h3 style={{ margin: 0, fontWeight: 800, color: 'var(--text-primary)', fontSize: 17 }}>Acesso Restrito</h3>
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 18 }}>
+              Para editar o perfil do <strong style={{ color: '#3b82f6' }}>Administrador</strong>, confirme a senha:
+            </p>
+            <input
+              type="password"
+              value={adminAuthPw}
+              onChange={e => { setAdminAuthPw(e.target.value); setAdminAuthError(''); }}
+              onKeyDown={e => e.key === 'Enter' && confirmAdminAuth()}
+              placeholder="Digite a senha do administrador"
+              autoFocus
+              style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: `1.5px solid ${adminAuthError ? '#dc2626' : 'var(--border)'}`, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 14, boxSizing: 'border-box', marginBottom: 8 }}
+            />
+            {adminAuthError && <div style={{ color: '#dc2626', fontSize: 12, marginBottom: 10 }}>❌ {adminAuthError}</div>}
+            <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+              <button onClick={() => setAdminAuthModal(null)}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontWeight: 700, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={confirmAdminAuth} disabled={!adminAuthPw}
+                style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', background: adminAuthPw ? '#3b82f6' : '#334155', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                🔓 Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+
+    {/* ═══════════════════════════════════════════════════════════
+        PAINEL ADMIN — ESTOQUE DE ONUs
+    ═══════════════════════════════════════════════════════════ */}
+    <div className="card p-0 overflow-hidden">
+      <button
+        onClick={() => { setStockOpen(o => !o); if (!stockOpen) loadAllStock(); }}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Package style={{ color: 'var(--accent)' }} />
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontWeight: 900, fontSize: 15, color: 'var(--text-primary)' }}>Gerenciar Estoque de ONUs</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Visualize, transfira e cadastre em lote por técnico</div>
+          </div>
+        </div>
+        {stockOpen ? <ChevronUp style={{ color: 'var(--text-muted)' }} /> : <ChevronDown style={{ color: 'var(--text-muted)' }} />}
+      </button>
+
+      {stockOpen && (
+        <div style={{ padding: '0 20px 20px', borderTop: '1px solid var(--border)' }}>
+
+          {/* Ações */}
+          <div style={{ display: 'flex', gap: 8, margin: '14px 0', flexWrap: 'wrap' }}>
+            <button onClick={() => setBatchModal(true)} style={adminBtn('#1d4ed8')}>
+              <Plus size={14} /> Cadastrar em Lote
+            </button>
+            <button onClick={loadAllStock} style={adminBtn('#475569')}>
+              <RefreshCw size={14} /> Atualizar
+            </button>
+          </div>
+
+          {/* Filtro por status */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+            {[['', 'Todos'], ['disponivel', 'Disponíveis'], ['utilizado', 'Em Uso'], ['defeito', 'Defeito']].map(([v, l]) => (
+              <button key={v} onClick={() => setStockFilter(v)} style={{
+                padding: '5px 14px', borderRadius: 20, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                background: stockFilter === v ? '#1e293b' : '#e2e8f0', color: stockFilter === v ? '#fff' : '#475569',
+              }}>{l}</button>
+            ))}
+          </div>
+
+          {stockLoading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>Carregando...</div>}
+
+          {!stockLoading && (() => {
+            const techs = [...new Set(allStock.map(i => i.tech_name || `Técnico ${i.tech_id}`))].sort();
+            const filtered = stockFilter ? allStock.filter(i => i.status === stockFilter) : allStock;
+
+            if (!filtered.length) return (
+              <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>
+                <Package size={36} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
+                <p>Nenhuma ONU cadastrada</p>
+              </div>
+            );
+
+            // Agrupar por técnico
+            const byTech = {};
+            filtered.forEach(item => {
+              const key = item.tech_name || `Técnico ${item.tech_id}`;
+              if (!byTech[key]) byTech[key] = [];
+              byTech[key].push(item);
+            });
+
+            return Object.entries(byTech).map(([techName, items]) => {
+              const disp = items.filter(i => i.status === 'disponivel').length;
+              const used  = items.filter(i => i.status === 'utilizado').length;
+              const def   = items.filter(i => i.status === 'defeito').length;
+              return (
+                <div key={techName} style={{ marginBottom: 16, background: 'var(--bg-input)', borderRadius: 14, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                  <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, background: 'rgba(59,130,246,0.07)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Wrench size={16} style={{ color: 'var(--accent)' }} />
+                      <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: 14 }}>{techName}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <span style={badge('#dcfce7','#166534')}>📦 {disp}</span>
+                      <span style={badge('#e0e7ff','#3730a3')}>✅ {used}</span>
+                      {def > 0 && <span style={badge('#fee2e2','#991b1b')}>⚠️ {def}</span>}
+                    </div>
+                  </div>
+                  <div style={{ padding: '10px 16px' }}>
+                    {items.map(item => {
+                      const sb = item.status === 'disponivel' ? { bg: '#dcfce7', c: '#166534', l: 'Disponível' }
+                               : item.status === 'utilizado'  ? { bg: '#e0e7ff', c: '#3730a3', l: 'Em Uso' }
+                               : { bg: '#fee2e2', c: '#991b1b', l: 'Defeito' };
+                      return (
+                        <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', gap: 8, flexWrap: 'wrap' }}>
+                          <div>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>{item.mac_address}</span>
+                            {item.modelo && <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>{item.modelo}</span>}
+                            {item.client_name && <div style={{ fontSize: 11, color: '#3730a3' }}>👤 {item.client_name}</div>}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: sb.bg, color: sb.c }}>{sb.l}</span>
+                            {item.status === 'disponivel' && (
+                              <button onClick={() => { setAssignModal({ stock_id: item.id, current_tech: techName, mac: item.mac_address }); setAssignTechId(''); }}
+                                title="Transferir para outro técnico"
+                                style={{ padding: '4px 8px', borderRadius: 8, border: 'none', background: '#dbeafe', color: '#1d4ed8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 700 }}>
+                                <ArrowRightLeft size={12} /> Transferir
+                              </button>
+                            )}
+                            <button onClick={() => handleDeleteStock(item.id)} title="Remover"
+                              style={{ padding: '4px 8px', borderRadius: 8, border: 'none', background: '#fee2e2', color: '#991b1b', cursor: 'pointer' }}>
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+      )}
+    </div>
+
+    {/* Modal: Transferir ONU */}
+    {assignModal && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: 'var(--bg-card)', borderRadius: 20, padding: 24, width: '100%', maxWidth: 420 }}>
+          <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 14, color: 'var(--text-primary)' }}>🔄 Transferir ONU</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
+            MAC: <strong style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>{assignModal.mac}</strong><br/>
+            Técnico atual: <strong>{assignModal.current_tech}</strong>
+          </div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Transferir para:</label>
+          <select value={assignTechId} onChange={e => setAssignTechId(e.target.value)}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 14, marginBottom: 16 }}>
+            <option value="">-- Selecione o técnico --</option>
+            {users.filter(u => u.role === 'tecnico' && u.active).map(u => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setAssignModal(null)} style={{ flex: 1, padding: 10, borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={handleAssign} disabled={!assignTechId} style={{ flex: 2, padding: 10, borderRadius: 10, border: 'none', background: assignTechId ? '#1d4ed8' : '#475569', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>✅ Confirmar Transferência</button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Modal: Cadastro em lote (admin) */}
+    {batchModal && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: 'var(--bg-card)', borderRadius: 20, padding: 24, width: '100%', maxWidth: 460 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <span style={{ fontWeight: 900, fontSize: 16, color: 'var(--text-primary)' }}>📋 Cadastrar ONUs em Lote</span>
+            <button onClick={() => setBatchModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 22 }}><X /></button>
+          </div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Técnico destino:</label>
+          <select value={batchTechId} onChange={e => setBatchTechId(e.target.value)}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 14, marginBottom: 12 }}>
+            <option value="">-- Selecione o técnico --</option>
+            {users.filter(u => u.role === 'tecnico' && u.active).map(u => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
+          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
+            ONUs (uma por linha — <code>MAC,Modelo,Serial</code>):
+          </label>
+          <textarea value={batchText} onChange={e => setBatchText(e.target.value)} rows={7}
+            placeholder={'AA:BB:CC:DD:EE:01,ZTE F601\nAA:BB:CC:DD:EE:02,Huawei HG8010H\nAA:BB:CC:DD:EE:03'}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box', marginBottom: 14 }} />
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setBatchModal(false)} style={{ flex: 1, padding: 10, borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={handleBatchAdmin} disabled={batchSaving || !batchTechId} style={{ flex: 2, padding: 10, borderRadius: 10, border: 'none', background: batchTechId ? '#1d4ed8' : '#475569', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+              {batchSaving ? 'Importando...' : '📥 Importar Lote'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
+}
+
+// ── Helpers de estilo ────────────────────────────────────────
+function adminBtn(bg) {
+  return {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    padding: '8px 14px', borderRadius: 9, border: 'none',
+    background: bg, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+  };
+}
+function badge(bg, color) {
+  return { padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: bg, color };
 }

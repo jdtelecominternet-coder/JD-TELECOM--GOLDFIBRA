@@ -92,11 +92,21 @@ router.get('/dashboard', authMiddleware, adminOnly, (req, res) => {
       (SELECT so.os_number FROM service_orders so WHERE so.technician_id=u.id AND so.status NOT IN ('finalizado','cancelado') ORDER BY so.created_at DESC LIMIT 1) as current_os,
       (SELECT so.readable_id FROM service_orders so WHERE so.technician_id=u.id AND so.status NOT IN ('finalizado','cancelado') ORDER BY so.created_at DESC LIMIT 1) as current_readable_id,
       (SELECT c.name FROM service_orders so JOIN clients c ON c.id=so.client_id WHERE so.technician_id=u.id AND so.status NOT IN ('finalizado','cancelado') ORDER BY so.created_at DESC LIMIT 1) as current_client,
+      (SELECT so.latitude FROM service_orders so WHERE so.technician_id=u.id AND so.latitude IS NOT NULL ORDER BY so.created_at DESC LIMIT 1) as latitude,
+      (SELECT so.longitude FROM service_orders so WHERE so.technician_id=u.id AND so.longitude IS NOT NULL ORDER BY so.created_at DESC LIMIT 1) as longitude,
+      (SELECT so.geo_address FROM service_orders so WHERE so.technician_id=u.id AND so.latitude IS NOT NULL ORDER BY so.created_at DESC LIMIT 1) as geo_address,
       (SELECT mo.status FROM maintenance_orders mo WHERE mo.assigned_tech_id=u.id AND mo.status NOT IN ('concluido','cancelado') ORDER BY mo.created_at DESC LIMIT 1) as rede_status,
       (SELECT mo.readable_id FROM maintenance_orders mo WHERE mo.assigned_tech_id=u.id AND mo.status NOT IN ('concluido','cancelado') ORDER BY mo.created_at DESC LIMIT 1) as rede_readable_id,
       (SELECT mo.cto_number FROM maintenance_orders mo WHERE mo.assigned_tech_id=u.id AND mo.status NOT IN ('concluido','cancelado') ORDER BY mo.created_at DESC LIMIT 1) as rede_cto
     FROM users u WHERE u.role IN ('tecnico','manutencao') AND u.active=1 ORDER BY u.role, u.name
   `).all();
+
+  // Adiciona status online real (só quem está conectado via socket)
+  const onlineUsers = req.app.get('onlineUsers') || new Map();
+  const techWithOnline = tech_operational.map(t => ({
+    ...t,
+    online: onlineUsers.has(t.id),
+  }));
 
   // Financial summary
   // seller_a_receber_valor = comissão calculada (% do plano ou valor fixo), NÃO o valor do plano
@@ -176,7 +186,7 @@ router.get('/dashboard', authMiddleware, adminOnly, (req, res) => {
     recent_orders,
     seller_stats: seller_stats_with_commission,
     tech_stats: tech_stats_with_earnings,
-    tech_operational,
+    tech_operational: techWithOnline,
     financial: { ...financial, por_tipo },
     commission_config: { type: commType, seller_value: commVal, tech_value: techVal },
     pending_seller_payments,
@@ -282,6 +292,7 @@ const DEFAULT_ROLE_PERMS = {
   vendedor:   { dashboard: true,  users: false, clients: true,  plans: true,  orders: true,  transfer: true,  technical: false, reports: false, chat: false, settings: false },
   tecnico:    { dashboard: true,  users: false, clients: false, plans: false, orders: false, transfer: false, technical: true,  reports: false, chat: true,  settings: false },
   manutencao: { dashboard: false, users: false, clients: false, plans: false, orders: false, transfer: false, technical: false, servico_rede: true, reports: false, chat: true, settings: false },
+  qualidade:  { dashboard: false, users: false, clients: false, plans: false, orders: false, transfer: false, technical: false, quality_control: true, reports: false, chat: true, settings: false },
 };
 
 const DEFAULT_OS_VALUES = {
@@ -333,29 +344,31 @@ router.put('/valores-por-tipo', authMiddleware, adminOnly, (req, res) => {
 router.get('/role-permissions', authMiddleware, (req, res) => {
   const db = getDb();
   const s = db.prepare('SELECT role_permissions FROM settings WHERE id=1').get();
-  if (s && s.role_permissions) { try { const stored = JSON.parse(s.role_permissions); return res.json({ vendedor: { ...DEFAULT_ROLE_PERMS.vendedor, ...(stored.vendedor||{}) }, tecnico: { ...DEFAULT_ROLE_PERMS.tecnico, ...(stored.tecnico||{}) }, manutencao: { ...DEFAULT_ROLE_PERMS.manutencao, ...(stored.manutencao||{}) } }); } catch(_){} }
+  if (s && s.role_permissions) {
+    try {
+      const stored = JSON.parse(s.role_permissions);
+      return res.json({
+        vendedor:   { ...DEFAULT_ROLE_PERMS.vendedor,   ...(stored.vendedor   || {}) },
+        tecnico:    { ...DEFAULT_ROLE_PERMS.tecnico,    ...(stored.tecnico    || {}) },
+        manutencao: { ...DEFAULT_ROLE_PERMS.manutencao, ...(stored.manutencao || {}) },
+        qualidade:  { ...DEFAULT_ROLE_PERMS.qualidade,  ...(stored.qualidade  || {}) },
+      });
+    } catch(_) {}
+  }
   res.json(DEFAULT_ROLE_PERMS);
 });
 router.put('/role-permissions', authMiddleware, adminOnly, (req, res) => {
   const db = getDb();
   const { role, permissions } = req.body;
 
-  if (!['vendedor', 'tecnico', 'manutencao'].includes(role))
+  if (!['vendedor', 'tecnico', 'manutencao', 'qualidade'].includes(role))
     return res.status(400).json({ error: 'Role inválido.' });
 
   if (typeof permissions !== 'object' || permissions === null || Array.isArray(permissions))
     return res.status(400).json({ error: 'Payload inválido: permissions deve ser um objeto.' });
 
-  const allowedKeys = new Set(Object.keys(DEFAULT_ROLE_PERMS[role]));
-  const chaveInvalida = Object.keys(permissions).find(k => !allowedKeys.has(k));
-  if (chaveInvalida)
-    return res.status(400).json({ error: `Permissão desconhecida: "${chaveInvalida}".` });
-
-  const valorInvalido = Object.entries(permissions).find(([, v]) => typeof v !== 'boolean');
-  if (valorInvalido)
-    return res.status(400).json({ error: `Valor inválido para "${valorInvalido[0]}": deve ser booleano.` });
-
-  const safePerms = Object.fromEntries(Object.entries(permissions).filter(([k]) => allowedKeys.has(k)));
+  // Aceita qualquer chave booleana sem validação rígida
+  const safePerms = Object.fromEntries(Object.entries(permissions).filter(([, v]) => typeof v === 'boolean'));
 
   const current = db.prepare('SELECT role_permissions FROM settings WHERE id=1').get();
   let obj = {};
@@ -365,7 +378,7 @@ router.put('/role-permissions', authMiddleware, adminOnly, (req, res) => {
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) obj = parsed;
     } catch (_) {}
   }
-  obj[role] = { ...DEFAULT_ROLE_PERMS[role], ...(obj[role] || {}), ...safePerms };
+  obj[role] = { ...(DEFAULT_ROLE_PERMS[role] || {}), ...(obj[role] || {}), ...safePerms };
   db.prepare('UPDATE settings SET role_permissions=? WHERE id=1').run(JSON.stringify(obj));
   res.json({ message: 'Salvo' });
 });

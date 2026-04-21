@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useChat } from '../contexts/ChatContext';
 import api from '../services/api';
 import { useSync } from '../hooks/useSync';
 import toast from 'react-hot-toast';
 import {
   TrendingUp, Users, ClipboardList, CheckCircle, Clock, DollarSign,
   Wifi, Award, Wrench, Truck, AlertCircle, RefreshCw, Banknote,
-  ShoppingBag, CheckSquare, XCircle, User, Camera
+  ShoppingBag, CheckSquare, XCircle, User, Camera, UserX
 } from 'lucide-react';
 
 const fmtR$ = v => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
@@ -372,10 +373,28 @@ function AdminFinancialPanel({ data, commCfg, onPaid }) {
 // ── DASHBOARD PRINCIPAL ───────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user, updateUser } = useAuth();
+  const chatCtx = useChat();
   const [data, setData] = useState(null);
   const [earnings, setEarnings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  // Localização em tempo real dos técnicos { [user_id]: { latitude, longitude, geo_address, ts } }
+  const [techLocations, setTechLocations] = useState({});
+
+  // Escuta eventos de localização em tempo real
+  useEffect(() => {
+    const socket = chatCtx?.socket;
+    if (!socket || user.role !== 'admin') return;
+    const onLocation = (data) => {
+      setTechLocations(prev => ({ ...prev, [data.user_id]: data }));
+    };
+    const onOffline = (data) => {
+      setTechLocations(prev => { const n = { ...prev }; delete n[data.user_id]; return n; });
+    };
+    socket.on('tech:location_update', onLocation);
+    socket.on('tech:offline', onOffline);
+    return () => { socket.off('tech:location_update', onLocation); socket.off('tech:offline', onOffline); };
+  }, [chatCtx?.socket, user.role]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -482,17 +501,51 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {data.tech_operational.map(t => {
                   const isRede = t.role === 'manutencao';
-                  // Para técnico de rede usa status da OS de rede; para técnico usa status da OS normal
                   const s = isRede ? t.rede_status : t.current_status;
-                  const badge = s === 'em_deslocamento' || s === 'aguardando' ? { label: 'Em Deslocamento', color: '#f59e0b', Icon: Truck }
+
+                  // Se não está online, mostra Offline independente do status
+                  const badge = !t.online
+                    ? { label: 'Offline', color: '#94a3b8', Icon: UserX }
+                    : s === 'em_deslocamento' || s === 'aguardando' ? { label: 'Em Deslocamento', color: '#f59e0b', Icon: Truck }
                     : s === 'em_andamento' || s === 'em_execucao' ? { label: 'Em Andamento', color: '#3b82f6', Icon: Wrench }
                     : { label: 'Disponível', color: '#22c55e', Icon: CheckCircle };
+
                   return (
-                    <div key={t.id} className="rounded-xl p-3 flex items-center gap-3"
-                      style={{ background: 'var(--bg-input)', border: `1px solid ${badge.color}44` }}>
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                    <div key={t.id}
+                      className="rounded-xl p-3 flex items-center gap-3"
+                      onClick={() => {
+                        // Prioriza localização em tempo real, depois banco de dados
+                        const live = techLocations[t.id];
+                        const lat = live?.latitude ?? t.latitude;
+                        const lng = live?.longitude ?? t.longitude;
+                        const addr = live?.geo_address ?? t.geo_address;
+                        if (lat && lng) {
+                          window.open(`https://www.google.com/maps?q=${lat},${lng}&z=17&hl=pt-BR`, '_blank');
+                        } else if (addr) {
+                          window.open(`https://www.google.com/maps/search/${encodeURIComponent(addr)}`, '_blank');
+                        }
+                      }}
+                      style={{
+                        background: 'var(--bg-input)',
+                        border: `1px solid ${badge.color}44`,
+                        opacity: t.online ? 1 : 0.6,
+                        cursor: (techLocations[t.id] || t.latitude || t.geo_address) ? 'pointer' : 'default',
+                        transition: 'box-shadow 0.15s',
+                      }}
+                      title={(techLocations[t.id] || t.latitude || t.geo_address) ? `Ver localização de ${t.name} no mapa` : ''}
+                      onMouseEnter={e => { if (techLocations[t.id] || t.latitude || t.geo_address) e.currentTarget.style.boxShadow = `0 0 0 2px ${badge.color}88`; }}
+                      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                    >
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 relative"
                         style={{ background: badge.color + '20' }}>
                         <badge.Icon className="w-4 h-4" style={{ color: badge.color }} />
+                        {/* Indicador online/offline */}
+                        <span style={{
+                          position: 'absolute', bottom: 0, right: 0,
+                          width: 10, height: 10, borderRadius: '50%',
+                          background: t.online ? '#22c55e' : '#94a3b8',
+                          border: '2px solid var(--bg-input)'
+                        }} />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
@@ -501,8 +554,14 @@ export default function Dashboard() {
                         </div>
                         <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{t.jd_id}</p>
                         <p className="text-xs font-semibold" style={{ color: badge.color }}>{badge.label}</p>
-                        {isRede && t.rede_cto && <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>📡 CTO {t.rede_cto} — {t.rede_readable_id}</p>}
-                        {!isRede && t.current_client && <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>📍 {t.current_client}</p>}
+                        {t.online && isRede && t.rede_cto && <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>📡 CTO {t.rede_cto} — {t.rede_readable_id}</p>}
+                        {t.online && !isRede && t.current_client && <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>📍 {t.current_client}</p>}
+                        {techLocations[t.id] && (
+                          <p className="text-xs font-semibold mt-0.5" style={{ color: '#22c55e' }}>📡 Ao vivo — Ver no mapa</p>
+                        )}
+                        {!techLocations[t.id] && (t.latitude || t.geo_address) && (
+                          <p className="text-xs font-semibold mt-0.5" style={{ color: '#60a5fa' }}>🗺️ Última localização</p>
+                        )}
                       </div>
                     </div>
                   );

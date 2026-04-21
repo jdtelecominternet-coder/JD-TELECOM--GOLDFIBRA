@@ -1,13 +1,156 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-const PERIODS = [{ value: 'manha', label: 'Manha' }, { value: 'tarde', label: 'Tarde' }];
+const PERIODS = [{ value: 'manha', label: '☀️ Manhã', desc: 'Das 08h às 12h' }, { value: 'tarde', label: '🌙 Tarde', desc: 'Das 13h às 18h' }];
+const DAYS_LABEL = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+// ─── Calendário de Agendamento ────────────────────────────────────────────────
+function SmartCalendar({ selectedDate, selectedPeriod, onSelect }) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [cursor, setCursor] = useState(() => { const d=new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const [avail, setAvail] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const monthKey = `${cursor.y}-${String(cursor.m+1).padStart(2,'0')}`;
+
+  const loadAvail = useCallback(async (key) => {
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/solicitations/availability?month=${key}`);
+      const d = await r.json();
+      setAvail(d.days || {});
+    } catch { setAvail({}); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { loadAvail(monthKey); }, [monthKey]);
+
+  // Primeiro dia do mês + total de dias
+  const firstDay = new Date(cursor.y, cursor.m, 1).getDay();
+  const daysInMonth = new Date(cursor.y, cursor.m + 1, 0).getDate();
+
+  function dayStatus(day) {
+    const date = new Date(cursor.y, cursor.m, day);
+    if (date < today) return 'past';
+    if (date.getDay() === 0) return 'sunday'; // domingo bloqueado
+    const key = `${cursor.y}-${String(cursor.m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const info = avail[key];
+    if (!info) return 'free';
+    if (info.full) return 'full';
+    const total = (info.manha?.count||0)+(info.tarde?.count||0);
+    if (total >= 2) return 'almost';
+    return 'free';
+  }
+
+  function dayColor(status, isSelected) {
+    if (isSelected) return { bg:'#1e50b4', text:'#fff', border:'#1e50b4', cursor:'pointer' };
+    if (status==='past'||status==='sunday') return { bg:'#f3f4f6', text:'#d1d5db', border:'transparent', cursor:'not-allowed' };
+    if (status==='full') return { bg:'#fee2e2', text:'#b91c1c', border:'#fca5a5', cursor:'not-allowed' };
+    if (status==='almost') return { bg:'#fef9c3', text:'#92400e', border:'#fde68a', cursor:'pointer' };
+    return { bg:'#dcfce7', text:'#166534', border:'#86efac', cursor:'pointer' };
+  }
+
+  function selectDay(day) {
+    const status = dayStatus(day);
+    if (status==='past'||status==='sunday'||status==='full') return;
+    const key = `${cursor.y}-${String(cursor.m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    onSelect(key, null); // reseta período ao trocar data
+  }
+
+  const selInfo = avail[selectedDate] || null;
+
+  return (
+    <div>
+      {/* Navegação do mês */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+        <button type="button" onClick={()=>setCursor(c=>{ const d=new Date(c.y,c.m-1,1); return {y:d.getFullYear(),m:d.getMonth()}; })}
+          style={{padding:'6px 14px',borderRadius:8,border:'1px solid #d1d5db',background:'#fff',cursor:'pointer',fontSize:18}}>‹</button>
+        <span style={{fontWeight:700,fontSize:15,color:'#1e3a8a'}}>{MONTHS[cursor.m]} {cursor.y}</span>
+        <button type="button" onClick={()=>setCursor(c=>{ const d=new Date(c.y,c.m+1,1); return {y:d.getFullYear(),m:d.getMonth()}; })}
+          style={{padding:'6px 14px',borderRadius:8,border:'1px solid #d1d5db',background:'#fff',cursor:'pointer',fontSize:18}}>›</button>
+      </div>
+
+      {/* Legenda */}
+      <div style={{display:'flex',gap:10,marginBottom:10,flexWrap:'wrap'}}>
+        {[['#dcfce7','#166534','Disponível'],['#fef9c3','#92400e','Quase cheio'],['#fee2e2','#b91c1c','Lotado']].map(([bg,text,label])=>(
+          <div key={label} style={{display:'flex',alignItems:'center',gap:4,fontSize:11}}>
+            <div style={{width:12,height:12,borderRadius:3,background:bg,border:`1px solid ${bg}`}}/>
+            <span style={{color:'#6b7280'}}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Grade do calendário */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4,marginBottom:14}}>
+        {DAYS_LABEL.map(d=>(
+          <div key={d} style={{textAlign:'center',fontSize:11,fontWeight:700,color:'#6b7280',padding:'4px 0'}}>{d}</div>
+        ))}
+        {Array.from({length:firstDay}).map((_,i)=><div key={'e'+i}/>)}
+        {Array.from({length:daysInMonth},(_,i)=>i+1).map(day=>{
+          const key = `${cursor.y}-${String(cursor.m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          const status = dayStatus(day);
+          const isSelected = key === selectedDate;
+          const c = dayColor(status, isSelected);
+          return (
+            <button type="button" key={day} onClick={()=>selectDay(day)}
+              style={{padding:'8px 0',borderRadius:8,border:`1.5px solid ${c.border}`,background:c.bg,color:c.text,
+                fontWeight:isSelected?800:600,fontSize:13,cursor:c.cursor,transition:'all .15s'}}>
+              {day}
+            </button>
+          );
+        })}
+      </div>
+
+      {loading && <p style={{textAlign:'center',fontSize:12,color:'#9ca3af'}}>Verificando disponibilidade...</p>}
+
+      {/* Seleção de período */}
+      {selectedDate && (
+        <div style={{background:'#f0f9ff',border:'1.5px solid #bae6fd',borderRadius:12,padding:14}}>
+          <p style={{fontWeight:700,color:'#0c4a6e',marginBottom:10,fontSize:13}}>
+            📅 {selectedDate.split('-').reverse().join('/')} — Escolha o período:
+          </p>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            {PERIODS.map(p=>{
+              const info = selInfo?.[p.value];
+              const isFull = info && !info.available;
+              const isChosen = selectedPeriod === p.value;
+              return (
+                <button type="button" key={p.value}
+                  disabled={!!isFull}
+                  onClick={()=>!isFull && onSelect(selectedDate, p.value)}
+                  style={{padding:'12px 8px',borderRadius:10,border:`2px solid ${isChosen?'#1e50b4':isFull?'#fca5a5':'#d1d5db'}`,
+                    background:isChosen?'#1e50b4':isFull?'#fee2e2':'#fff',
+                    color:isChosen?'#fff':isFull?'#b91c1c':'#374151',
+                    cursor:isFull?'not-allowed':'pointer',textAlign:'center',opacity:isFull?0.7:1}}>
+                  <div style={{fontSize:18}}>{p.value==='manha'?'☀️':'🌙'}</div>
+                  <div style={{fontWeight:700,fontSize:13}}>{p.value==='manha'?'Manhã':'Tarde'}</div>
+                  <div style={{fontSize:11,opacity:.8}}>{p.desc}</div>
+                  {isFull
+                    ? <div style={{fontSize:10,marginTop:4,fontWeight:700,color:'#b91c1c'}}>❌ LOTADO</div>
+                    : <div style={{fontSize:10,marginTop:4,color:isChosen?'#bfdbfe':'#6b7280'}}>
+                        {info ? `${info.count}/${2} vagas` : '2 vagas'}
+                      </div>}
+                </button>
+              );
+            })}
+          </div>
+          {PERIODS.every(p=>selInfo?.[p.value] && !selInfo[p.value].available) && (
+            <p style={{marginTop:10,fontSize:12,color:'#b91c1c',fontWeight:600,textAlign:'center'}}>
+              ⚠️ Este dia está completamente lotado. Por favor, escolha outra data.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Solicitar() {
   const [plans, setPlans] = useState([]);
   const [token, setToken] = useState('');
   const [tokenStatus, setTokenStatus] = useState('checking'); // checking | valid | invalid | used
   const [sellerName, setSellerName] = useState('');
-  const [form, setForm] = useState({ name:'', cpf:'', birth_date:'', whatsapp:'', email:'', cep:'', street:'', number:'', complement:'', neighborhood:'', city:'', state:'', plan_id:'', install_period:'', observations:'' });
+  const [form, setForm] = useState({ name:'', cpf:'', birth_date:'', whatsapp:'', email:'', cep:'', street:'', number:'', complement:'', neighborhood:'', city:'', state:'', plan_id:'', install_period:'', scheduled_date:'', observations:'' });
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
   const [submittedForm, setSubmittedForm] = useState(null);
@@ -178,7 +321,7 @@ export default function Solicitar() {
 
         <div style={{background:'#fff',borderRadius:12,padding:20,boxShadow:'0 2px 8px rgba(0,0,0,0.07)'}}>
           <p style={{fontWeight:700,color:'#1e50b4',margin:'0 0 14px',fontSize:15}}>Plano e Instalacao</p>
-          <div style={{display:'grid',gap:12}}>
+          <div style={{display:'grid',gap:16}}>
             <div>
               <label style={{display:'block',fontWeight:600,marginBottom:4,fontSize:13,color:'#374151'}}>Plano desejado</label>
               <select value={form.plan_id} onChange={e=>set('plan_id',e.target.value)} style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:8,fontSize:14,boxSizing:'border-box',background:'#fff',color:'#111'}}>
@@ -186,17 +329,27 @@ export default function Solicitar() {
                 {plans.map(p => <option key={p.id} value={p.id}>{p.name}{p.speed ? ' - ' + p.speed + ' Mbps' : ''}{p.price ? ' - R$ ' + parseFloat(p.price).toFixed(2) : ''}</option>)}
               </select>
             </div>
+
+            {/* Calendário inteligente */}
             <div>
-              <label style={{display:'block',fontWeight:600,marginBottom:4,fontSize:13,color:'#374151'}}>Periodo preferido de instalacao</label>
-              <div style={{display:'flex',gap:12}}>
-                {PERIODS.map(p => (
-                  <label key={p.value} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontWeight:form.install_period===p.value?700:400,color:form.install_period===p.value?'#1e50b4':'#555'}}>
-                    <input type="radio" name="period" value={p.value} checked={form.install_period===p.value} onChange={()=>set('install_period',p.value)} />
-                    {p.label}
-                  </label>
-                ))}
-              </div>
+              <label style={{display:'block',fontWeight:600,marginBottom:8,fontSize:13,color:'#374151'}}>
+                📅 Data e período de instalação
+              </label>
+              <SmartCalendar
+                selectedDate={form.scheduled_date}
+                selectedPeriod={form.install_period}
+                onSelect={(date, period) => setForm(f => ({ ...f, scheduled_date: date, install_period: period || '' }))}
+              />
+              {form.scheduled_date && form.install_period && (
+                <div style={{marginTop:10,background:'#f0fdf4',border:'1.5px solid #86efac',borderRadius:10,padding:'10px 14px',display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:18}}>✅</span>
+                  <span style={{fontSize:13,fontWeight:600,color:'#166534'}}>
+                    Agendado: {form.scheduled_date.split('-').reverse().join('/')} — {form.install_period==='manha'?'☀️ Manhã':'🌙 Tarde'}
+                  </span>
+                </div>
+              )}
             </div>
+
             <div>
               <label style={{display:'block',fontWeight:600,marginBottom:4,fontSize:13,color:'#374151'}}>Observacoes</label>
               <textarea value={form.observations} onChange={e=>set('observations',e.target.value)} rows={3} placeholder="Alguma informacao adicional..." style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:8,fontSize:14,boxSizing:'border-box',resize:'vertical',background:'#fff',color:'#111'}} />

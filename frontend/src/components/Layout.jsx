@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useChat } from '../contexts/ChatContext';
@@ -8,7 +8,8 @@ import api from '../services/api';
 import {
   LayoutDashboard, Users, UserCheck, Package, ClipboardList,
   Wrench, FileBarChart, User, LogOut, Menu, Wifi, ChevronRight,
-  MessageCircle, Sun, Moon, Settings, TrendingUp, ClipboardCheck, Bot, RotateCw
+  MessageCircle, Sun, Moon, Settings, TrendingUp, ClipboardCheck, Bot, RotateCw,
+  Radio, Network, Server, History, AlertCircle, CheckCircle
 } from 'lucide-react';
 
 const navItems = [
@@ -18,16 +19,19 @@ const navItems = [
   { to: '/plans',     label: 'Planos',            icon: Package,         roles: ['admin','vendedor','tecnico'] },
   { to: '/orders',    label: 'Ordens de Serviço', icon: ClipboardList,   roles: ['admin','vendedor'] },
   { to: '/technical', label: 'Módulo Técnico',    icon: Wrench,          roles: ['admin','tecnico'] },
-  { to: '/reports',   label: 'Relatórios',        icon: FileBarChart,    roles: ['admin'] },
+  { to: '/reports',   label: 'Relatórios',          icon: FileBarChart,   roles: ['admin'] },
   { to: '/relatorio-tecnicos', label: 'Relatório Técnicos', icon: ClipboardCheck, roles: ['admin'] },
-  { to: '/cto-ocorrencias', label: 'Ocorrências CTO', icon: Wifi, roles: ['admin'] },
-  { to: '/servico-rede', label: 'Serviço de Rede', icon: Wrench, roles: ['admin', 'manutencao'] },
-  { to: '/chat',      label: 'Chat',              icon: MessageCircle,   roles: ['admin','tecnico','vendedor','manutencao'], badge: true },
-  { to: '/ai',        label: 'Assistente IA',     icon: Bot,             roles: ['admin','tecnico','vendedor'] },
-  { to: '/settings',  label: 'Configuracoes',     icon: Settings,        roles: ['admin'] },
-  { to: '/sales',     label: 'Gestao de Vendas',  icon: TrendingUp,      roles: ['admin'] },
-  { to: '/history',   label: 'Servicos Executados', icon: ClipboardCheck, roles: ['admin'] },
-  { to: '/solicitations', label: 'Solicitacoes', icon: Bell, roles: ['admin'], badge: 'solicitations' },
+  { to: '/cto-ocorrencias', label: 'Ocorrências CTO',  icon: AlertCircle,  roles: ['admin'] },
+  { to: '/servico-rede',    label: 'Serviço de Rede',  icon: Network,      roles: ['admin', 'manutencao'] },
+  { to: '/quality-control', label: 'Controle de Qualidade', icon: CheckCircle, roles: ['admin', 'qualidade'] },
+  { to: '/stock-admin',     label: 'Estoque Técnico',       icon: Package,        roles: ['admin'] },
+  { to: '/providers',  label: 'Provedor / CORE',       icon: Server,       roles: ['admin'], masterOnly: true },
+  { to: '/chat',      label: 'Chat',                   icon: MessageCircle, roles: ['admin','tecnico','vendedor','manutencao','qualidade'], badge: true },
+  { to: '/ai',        label: 'Assistente IA',          icon: Bot,          roles: ['admin','tecnico','vendedor'] },
+  { to: '/settings',  label: 'Configuracoes',          icon: Settings,     roles: ['admin'] },
+  { to: '/sales',     label: 'Gestao de Vendas',       icon: TrendingUp,   roles: ['admin'] },
+  { to: '/history',   label: 'Servicos Executados',    icon: History,      roles: ['admin'] },
+  { to: '/solicitations', label: 'Solicitacoes',       icon: Radio,        roles: ['admin'], badge: 'solicitations' },
 ];
 
 // Permissões padrão por role
@@ -43,8 +47,8 @@ const routePermKey = {
   '/orders': 'orders', '/technical': 'technical', '/reports': 'reports', '/chat': 'chat',
 };
 
-const roleLabel = { admin: 'Administrador', vendedor: 'Vendedor', tecnico: 'Técnico', manutencao: 'Técnico de Rede' };
-const rolePill   = { admin: 'bg-blue-500/30 text-blue-200', vendedor: 'bg-sky-500/30 text-sky-200', tecnico: 'bg-emerald-500/30 text-emerald-200', manutencao: 'bg-purple-500/30 text-purple-200' };
+const roleLabel = { admin: 'Administrador', vendedor: 'Vendedor', tecnico: 'Técnico', manutencao: 'Técnico de Rede', qualidade: 'Controle de Qualidade' };
+const rolePill   = { admin: 'bg-blue-500/30 text-blue-200', vendedor: 'bg-sky-500/30 text-sky-200', tecnico: 'bg-emerald-500/30 text-emerald-200', manutencao: 'bg-purple-500/30 text-purple-200', qualidade: 'bg-amber-500/30 text-amber-200' };
 
 import { useOfflineSync } from '../hooks/useOfflineSync';
 
@@ -52,10 +56,13 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const { pendingCount, syncing } = useOfflineSync();
   const nav = useNavigate();
+  const location = useLocation();
+  const mainRef = useRef(null);
   const chatCtx = useChat();
   const { theme, toggle } = useTheme();
   const unreadTotal = chatCtx?.unreadTotal || 0;
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [logo, setLogo] = useState(null);
   const [roleGlobalPerms, setRoleGlobalPerms] = useState(null);
   const [pendingSolicitations, setPendingSolicitations] = useState(0);
@@ -255,28 +262,38 @@ export default function Layout() {
 
   function handleLogout() { logout(); nav('/login'); }
 
+  // Scroll para o topo ao trocar de aba
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [location.pathname]);
+
   // Filtrar navItems respeitando permissions customizadas ou role padrão
   const filtered = navItems.filter(i => {
     if (!i.roles.includes(user?.role)) return false;
-    if (user?.role === 'admin') return true; // admin sempre ve tudo
+    if (i.masterOnly && user?.id !== 1) return false; // Provedor/CORE só para ID=1
+    if (user?.role === 'admin') return true;
     const key = routePermKey[i.to];
     if (!key) return true; // dashboard e profile sempre visíveis
     if (user?.permissions && user.permissions[key] !== undefined) return user.permissions[key];
     return defaultPerms[user?.role]?.[key] !== false;
   });
 
-  const SidebarContent = () => (
+  const SidebarContent = ({ collapsed = false }) => (
     <div className="flex flex-col h-full" style={{ background: 'var(--bg-sidebar)' }}>
       {/* Logo */}
       <div className="p-5" style={{ borderBottom: '1px solid var(--border-sidebar)' }}>
-        <div className="flex items-center gap-3">
+        <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
           {logo
-            ? <img src={logo} alt="Logo" className="w-10 h-10 rounded-xl object-contain bg-white/10 p-1" />
-            : <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center"><Wifi className="w-5 h-5 text-white" /></div>}
-          <div>
-            <p className="text-white font-black text-sm leading-tight">JD TELECOM</p>
-            <p className="text-blue-300 text-xs font-semibold tracking-wider">GOLD FIBRA</p>
-          </div>
+            ? <img src={logo} alt="Logo" className="w-10 h-10 rounded-xl object-contain bg-white/10 p-1 flex-shrink-0" />
+            : <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0"><Wifi className="w-5 h-5 text-white" /></div>}
+          {!collapsed && (
+            <div>
+              <p className="text-white font-black text-sm leading-tight">JD TELECOM</p>
+              <p className="text-blue-300 text-xs font-semibold tracking-wider">GOLD FIBRA</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -284,51 +301,63 @@ export default function Layout() {
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {filtered.map(item => (
           <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}>
+            className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''} ${collapsed ? 'justify-center px-2' : ''}`}
+            title={collapsed ? item.label : ''}>
             <item.icon className="w-4 h-4 flex-shrink-0" />
-            <span className="flex-1">{item.label}</span>
-            {item.badge === true && unreadTotal > 0
+            {!collapsed && <span className="flex-1">{item.label}</span>}
+            {!collapsed && (item.badge === true && unreadTotal > 0
               ? <span className="bg-red-500 text-white text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center">{unreadTotal > 99 ? '99+' : unreadTotal}</span>
               : item.badge === 'solicitations' && pendingSolicitations > 0
               ? <span className="bg-orange-500 text-white text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center">{pendingSolicitations > 99 ? '99+' : pendingSolicitations}</span>
               : item.to === '/servico-rede' && redeAdminCount > 0
               ? <span className="bg-green-500 text-white text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center">{redeAdminCount > 99 ? '99+' : redeAdminCount}</span>
-              : <ChevronRight className="w-3 h-3 opacity-30" />}
+              : <ChevronRight className="w-3 h-3 opacity-30" />)}
+            {collapsed && item.badge === true && unreadTotal > 0 && (
+              <span className="absolute top-1 right-1 bg-red-500 text-white text-xs font-black rounded-full w-4 h-4 flex items-center justify-center">{unreadTotal > 9 ? '9+' : unreadTotal}</span>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      {/* Theme + Font size */}
+      {/* Theme */}
       <div className="px-3 pb-2 space-y-0.5">
         <button onClick={toggle}
-          className="sidebar-item w-full"
-          title={theme === 'dark' ? 'Mudar para modo claro' : 'Mudar para modo escuro'}>
+          className={`sidebar-item w-full ${collapsed ? 'justify-center px-2' : ''}`}
+          title={collapsed ? (theme === 'dark' ? 'Modo Dia' : 'Modo Noite') : ''}>
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          <span>{theme === 'dark' ? 'Modo Dia' : 'Modo Noite'}</span>
+          {!collapsed && <span>{theme === 'dark' ? 'Modo Dia' : 'Modo Noite'}</span>}
         </button>
       </div>
 
       {/* User */}
       <div className="p-3" style={{ borderTop: '1px solid var(--border-sidebar)' }}>
         <NavLink to="/profile" onClick={() => setSidebarOpen(false)}
-          className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''} mb-1`}>
+          className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''} mb-1 ${collapsed ? 'justify-center px-2' : ''}`}
+          title={collapsed ? (user?.name || 'Perfil') : ''}>
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center overflow-hidden flex-shrink-0">
             {user?.photo_url
               ? <img src={user.photo_url} className="w-full h-full object-cover" alt="" />
               : <User className="w-4 h-4 text-white" />}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
-            <p className="text-xs opacity-60 font-mono">{user?.jd_id}</p>
-          </div>
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
+              <p className="text-xs opacity-60 font-mono">{user?.jd_id}</p>
+            </div>
+          )}
         </NavLink>
-        <div className="px-1 mb-2">
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${rolePill[user?.role]}`}>
-            {roleLabel[user?.role]}
-          </span>
-        </div>
-        <button onClick={handleLogout} className="sidebar-item w-full !text-red-300 hover:!bg-red-500/20">
-          <LogOut className="w-4 h-4" /> Sair do Sistema
+        {!collapsed && (
+          <div className="px-1 mb-2">
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${rolePill[user?.role]}`}>
+              {roleLabel[user?.role]}
+            </span>
+          </div>
+        )}
+        <button onClick={handleLogout}
+          className={`sidebar-item w-full !text-red-300 hover:!bg-red-500/20 ${collapsed ? 'justify-center px-2' : ''}`}
+          title={collapsed ? 'Sair do Sistema' : ''}>
+          <LogOut className="w-4 h-4" />
+          {!collapsed && 'Sair do Sistema'}
         </button>
       </div>
     </div>
@@ -425,8 +454,31 @@ export default function Layout() {
           {syncing ? `🔄 Sincronizando dados offline...` : `💾 ${pendingCount} ação(ões) offline pendente(s). Aguardando sync...`}
         </div>
       )}
-      <aside className="hidden lg:flex w-64 flex-col flex-shrink-0">
-        <SidebarContent />
+      <aside
+        className="hidden lg:flex flex-col flex-shrink-0 relative"
+        style={{
+          width: sidebarCollapsed ? 64 : 256,
+          transition: 'width 0.25s ease',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Botão minimizar — só desktop */}
+        <button
+          onClick={() => setSidebarCollapsed(c => !c)}
+          title={sidebarCollapsed ? 'Expandir menu' : 'Minimizar menu'}
+          style={{
+            position: 'absolute', top: 12, right: -14, zIndex: 10,
+            width: 28, height: 28, borderRadius: '50%',
+            background: 'var(--accent)', border: '2px solid var(--bg-sidebar)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          }}
+        >
+          {sidebarCollapsed
+            ? <ChevronRight className="w-4 h-4" />
+            : <ChevronRight className="w-4 h-4" style={{ transform: 'rotate(180deg)' }} />}
+        </button>
+        <SidebarContent collapsed={sidebarCollapsed} />
       </aside>
 
       {sidebarOpen && (
@@ -477,7 +529,7 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto" style={{ background: 'var(--bg-main)' }}>
+        <main ref={mainRef} className="flex-1 overflow-y-auto" style={{ background: 'var(--bg-main)', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           <div className="p-4 lg:p-6 max-w-7xl mx-auto"><Outlet /></div>
         </main>
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { Camera, User, Mail, Phone, Lock, Eye, EyeOff, FileText, Download, BarChart2 } from 'lucide-react';
+import { Camera, User, Mail, Phone, Lock, Eye, EyeOff, FileText, Download, BarChart2, Fingerprint } from 'lucide-react';
 import { generateOrderPDF } from '../utils/generateOrderPDF';
 import { generateSalesReportPDF } from '../utils/generateSalesReportPDF';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,6 +12,106 @@ const sellerStatusColor = { pendente: '#fff', pago: '#fff', cancelado: '#fff', s
 const sellerStatusBg    = { pendente: '#f97316', pago: '#22c55e', cancelado: '#ef4444', servico_concluido: '#22c55e' };
 const installPeriodLabel = { manha: 'Manhã ☀️', tarde: 'Tarde 🌤️' };
 const statusLabel = { pendente: 'Pendente', em_deslocamento: 'Em Deslocamento', em_execucao: 'Em Execucao', finalizado: 'Finalizado', cancelado: 'Cancelado' };
+
+function b64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+function fromB64url(str) {
+  str = (str || '').replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(str);
+  return Uint8Array.from(bin, c => c.charCodeAt(0)).buffer;
+}
+function isMobile() { return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent); }
+
+function BiometriaSection() {
+  const [supported, setSupported] = useState(false);
+  const [registered, setRegistered] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!isMobile()) return;
+    if (!window.PublicKeyCredential) return;
+    setSupported(true);
+    setRegistered(!!localStorage.getItem('jd_bio_cred'));
+  }, []);
+
+  if (!isMobile() || !supported) return null;
+
+  async function registerBio() {
+    setLoading(true);
+    try {
+      const { data } = await api.post('/auth/webauthn/challenge', {});
+      const challenge = fromB64url(data.challenge);
+      const cred = await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: { name: 'JD Telecom', id: window.location.hostname },
+          user: {
+            id: new TextEncoder().encode(String(user.id)),
+            name: user.jd_id,
+            displayName: user.name,
+          },
+          pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+          authenticatorSelection: { userVerification: 'required', residentKey: 'preferred' },
+          timeout: 60000,
+          attestation: 'none',
+        }
+      });
+      const credId = b64url(cred.rawId);
+      const pubkey = b64url(cred.response.getPublicKey ? cred.response.getPublicKey() : new ArrayBuffer(0));
+      await api.post('/auth/webauthn/register', { credentialId: credId, publicKey: pubkey });
+      localStorage.setItem('jd_bio_cred', credId);
+      setRegistered(true);
+      toast.success('✅ Biometria ativada com sucesso!');
+    } catch (err) {
+      if (err?.name === 'NotAllowedError') toast.error('Biometria cancelada pelo usuário');
+      else toast.error(err.response?.data?.error || '❌ Erro ao ativar biometria');
+    } finally { setLoading(false); }
+  }
+
+  async function revokeBio() {
+    setLoading(true);
+    try {
+      await api.delete('/auth/webauthn/revoke');
+      localStorage.removeItem('jd_bio_cred');
+      setRegistered(false);
+      toast.success('Biometria removida.');
+    } catch { toast.error('Erro ao remover biometria'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="card p-6 mt-4">
+      <h3 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+        <span style={{ fontSize: 20 }}>👆</span> Biometria / Face ID
+      </h3>
+      {registered ? (
+        <div>
+          <div style={{ background: '#052e16', border: '1px solid #16a34a', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#86efac' }}>
+            ✅ Biometria ativada neste dispositivo — você pode entrar sem senha
+          </div>
+          <button onClick={revokeBio} disabled={loading}
+            style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #dc2626', background: 'transparent', color: '#f87171', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
+            {loading ? 'Removendo...' : '🗑️ Remover Biometria'}
+          </button>
+        </div>
+      ) : (
+        <div>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 14 }}>
+            Ative para entrar usando sua digital ou reconhecimento facial sem precisar digitar senha.
+          </p>
+          <button onClick={registerBio} disabled={loading}
+            style={{ padding: '12px 24px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#1e3a8a,#2563eb)', color: '#fff', fontWeight: 800, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 20 }}>👆</span>
+            {loading ? 'Ativando...' : 'Ativar Biometria / Face ID'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Profile() {
   const { user: authUser, updateUser } = useAuth();
@@ -433,6 +533,8 @@ export default function Profile() {
           {savingPw ? 'Alterando...' : 'Alterar Senha'}
         </button>
       </div>
+
+      <BiometriaSection />
     </div>
   );
 }

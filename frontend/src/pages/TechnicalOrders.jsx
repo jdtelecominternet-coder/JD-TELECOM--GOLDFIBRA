@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { Camera, CheckCircle, XCircle, Truck, Wrench, Upload, ChevronDown, ChevronUp, MapPin, Copy, Check, Navigation, Wifi, Signal, MessageCircle, Eye, EyeOff, DollarSign, Banknote, Clock, Trash2, PenLine } from 'lucide-react';
+import { Camera, CheckCircle, XCircle, Truck, Wrench, Upload, ChevronDown, ChevronUp, MapPin, Copy, Check, Navigation, Wifi, Signal, MessageCircle, Eye, EyeOff, DollarSign, Banknote, Clock, Trash2, PenLine, Package } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useChat } from '../contexts/ChatContext';
 import { saveOfflineAction } from '../services/offlineQueue';
@@ -10,6 +10,7 @@ import OSTimer from '../components/OSTimer';
 import CancelOSModal from '../components/CancelOSModal';
 import CTOModal from '../components/CTOModal';
 import MaintenanceModal from '../components/MaintenanceModal';
+import TechStock, { InstalarONU } from '../components/TechStock';
 
 function SignaturePad({ onSave, onClear, hasSig }) {
   const canvasRef = useRef(null);
@@ -99,6 +100,449 @@ const PHOTO_FIELDS = [
   { key: 'photo_speedtest',   label: 'Teste de Velocidade',     required: true },
 ];
 
+// ── VISTORIA TÉCNICA ─────────────────────────────────────────────────────────
+function VistoriaTecnica() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+  const [corrObs, setCorrObs] = useState('');
+  const [corrPhotos, setCorrPhotos] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null); // qc id
+  const fileRef = useRef(null);
+  const chatCtx = useChat();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const r = await api.get('/quality-control/vistoria'); setItems(r.data); }
+    catch { toast.error('Erro ao carregar vistorias'); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const socket = chatCtx?.socket;
+    if (!socket) return;
+    const onRefresh = () => load();
+    const onRetornada = () => {
+      load();
+      // Som de alerta
+      try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value = 880; g.gain.setValueAtTime(0.3, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6); o.start(); o.stop(ctx.currentTime + 0.6); } catch(_) {}
+      toast('⚠️ OS retornada pelo supervisor para correção!', { icon: '🔁', duration: 8000 });
+    };
+    socket.on('data:refresh', onRefresh);
+    socket.on('os:retornada', onRetornada);
+    return () => { socket.off('data:refresh', onRefresh); socket.off('os:retornada', onRetornada); };
+  }, [chatCtx?.socket, load]);
+
+  async function handleEmRota(item) {
+    setActionLoading(item.id);
+    toast.loading('Capturando GPS...', { id: 'gps-rota' });
+    try {
+      let body = {};
+      // GPS com timeout de 8 segundos — sem Nominatim (lento no celular)
+      if (navigator.geolocation) {
+        body = await new Promise(resolve => {
+          const timer = setTimeout(() => resolve({}), 8000);
+          navigator.geolocation.getCurrentPosition(
+            pos => { clearTimeout(timer); resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }); },
+            () => { clearTimeout(timer); resolve({}); },
+            { timeout: 8000, maximumAge: 60000 }
+          );
+        });
+      }
+      await api.post(`/quality-control/em-rota/${item.id}`, body);
+      toast.success('🚗 Em rota! GPS capturado.', { id: 'gps-rota' });
+      load();
+    } catch(e) {
+      toast.dismiss('gps-rota');
+      toast.error(e.response?.data?.error || 'Erro ao registrar rota');
+    }
+    finally { setActionLoading(null); }
+  }
+
+  async function handleIniciar(item) {
+    setActionLoading(item.id);
+    toast.loading('Registrando chegada...', { id: 'gps-iniciar' });
+    try {
+      let body = {};
+      if (navigator.geolocation) {
+        body = await new Promise(resolve => {
+          const timer = setTimeout(() => resolve({}), 8000);
+          navigator.geolocation.getCurrentPosition(
+            pos => { clearTimeout(timer); resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }); },
+            () => { clearTimeout(timer); resolve({}); },
+            { timeout: 8000, maximumAge: 60000 }
+          );
+        });
+      }
+      await api.post(`/quality-control/iniciar/${item.id}`, body);
+      toast.success('✅ Chegou! Atendimento iniciado.', { id: 'gps-iniciar' });
+      load();
+    } catch(e) {
+      toast.dismiss('gps-iniciar');
+      toast.error(e.response?.data?.error || 'Erro ao iniciar');
+    }
+    finally { setActionLoading(null); }
+  }
+
+  async function addPhoto(e) {
+    const files = Array.from(e.target.files);
+    if (corrPhotos.length + files.length > 10) { toast.error('Máximo 10 fotos'); return; }
+    const compressed = await Promise.all(files.map(f => new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          if (w > 1200) { h = Math.round(h * 1200 / w); w = 1200; }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(f);
+    })));
+    setCorrPhotos(p => [...p, ...compressed]);
+  }
+
+  async function handleFinalizar(item) {
+    if (!corrPhotos.length) { toast.error('Anexe ao menos uma foto da correção realizada'); return; }
+    setSubmitting(true);
+    try {
+      await api.post(`/quality-control/correction/${item.id}`, { obs: corrObs, photos: corrPhotos });
+      toast.success('✅ Correção enviada! OS voltou ao Controle de Qualidade do supervisor.');
+      setCorrObs(''); setCorrPhotos([]); setExpanded(null);
+      load();
+    } catch(e) { toast.error(e.response?.data?.error || 'Erro ao enviar correção'); }
+    finally { setSubmitting(false); }
+  }
+
+  if (loading) return (
+    <div className="flex justify-center py-12">
+      <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
+    </div>
+  );
+
+  if (!items.length) return (
+    <div className="card p-10 text-center">
+      <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-30" style={{ color: '#22c55e' }} />
+      <p className="text-lg font-bold" style={{ color: 'var(--text-muted)' }}>Nenhuma OS aguardando correção</p>
+      <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Quando o supervisor retornar uma OS, ela aparece aqui.</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      {items.map(item => {
+        const supPhotos = (() => { try { return JSON.parse(item.supervisor_photos || '[]'); } catch { return []; } })();
+        const isExpanded = expanded === item.id;
+        const cs = item.correction_status; // null | em_rota | em_correcao
+
+        // Badge do status de correção
+        const statusBadge = cs === 'em_correcao'
+          ? { label: '🔧 Em Correção', bg: '#fef9c3', color: '#854d0e' }
+          : cs === 'em_rota'
+          ? { label: '🚗 Em Rota', bg: '#dbeafe', color: '#1e3a8a' }
+          : { label: '⏳ Aguardando Início', bg: '#fee2e2', color: '#991b1b' };
+
+        return (
+          <div key={item.id} className="card overflow-hidden" style={{ border: `2px solid ${cs === 'em_correcao' ? '#f59e0b66' : cs === 'em_rota' ? '#3b82f666' : '#ef444466'}` }}>
+            {/* Header */}
+            <div className="p-4 cursor-pointer" onClick={() => { setExpanded(isExpanded ? null : item.id); if (!isExpanded) { setCorrObs(''); setCorrPhotos([]); } }}>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="font-black" style={{ color: 'var(--text-primary)' }}>{item.readable_id || item.os_number}</span>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: statusBadge.bg, color: statusBadge.color }}>{statusBadge.label}</span>
+                    {item.cycle > 1 && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#f1f5f9', color: '#64748b' }}>Ciclo #{item.cycle}</span>}
+                  </div>
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{item.client_name} · {item.tipo_ordem_servico || 'Serviço'}</p>
+                  {item.street && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>📍 {[item.street, item.addr_number, item.neighborhood, item.city].filter(Boolean).join(', ')}</p>}
+                  {item.supervisor_obs && (
+                    <div className="mt-2 p-2 rounded-lg" style={{ background: '#ef444415', border: '1px solid #ef444430' }}>
+                      <p className="text-xs font-bold uppercase mb-0.5" style={{ color: '#ef4444' }}>Motivo do retorno:</p>
+                      <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{item.supervisor_obs}</p>
+                    </div>
+                  )}
+                </div>
+                <ChevronDown className={`w-5 h-5 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} style={{ color: 'var(--text-muted)' }} />
+              </div>
+            </div>
+
+            {/* Expandido */}
+            {isExpanded && (
+              <div className="px-4 pb-4 space-y-4" style={{ borderTop: '1px solid var(--border)' }}>
+
+                {/* Fotos do supervisor */}
+                {supPhotos.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold uppercase mt-3 mb-2" style={{ color: '#ef4444' }}>📷 Evidências do supervisor</p>
+                    <div className="flex flex-wrap gap-2">
+                      {supPhotos.map((p, i) => (
+                        <img key={i} src={p} alt="" className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-red-200"
+                          onClick={() => window.open(p, '_blank')} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Botão ir para o local (Maps) */}
+                {(item.street || item.city || item.latitude) && (
+                  <button
+                    onClick={() => {
+                      if (item.latitude && item.longitude) {
+                        window.open(`https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}&travelmode=driving`, '_blank');
+                      } else {
+                        const addr = [item.street, item.addr_number, item.neighborhood, item.city, item.state].filter(Boolean).join(', ');
+                        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}&travelmode=driving`, '_blank');
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-sm text-white"
+                    style={{ background: '#1a73e8' }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    🗺️ Iniciar Rota no Maps — {[item.street, item.addr_number, item.city].filter(Boolean).join(', ') || 'Ver localização'}
+                  </button>
+                )}
+
+                {/* ── PASSO 1: Em Rota ── */}
+                {!cs && (
+                  <button onClick={() => handleEmRota(item)} disabled={actionLoading === item.id}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white"
+                    style={{ background: '#3b82f6' }}>
+                    {actionLoading === item.id
+                      ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      : <Truck className="w-4 h-4" />}
+                    🚗 Estou em Rota — Capturar GPS
+                  </button>
+                )}
+
+                {/* ── PASSO 2: Iniciar Atendimento ── */}
+                {cs === 'em_rota' && (
+                  <button onClick={() => handleIniciar(item)} disabled={actionLoading === item.id}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white"
+                    style={{ background: '#f59e0b' }}>
+                    {actionLoading === item.id
+                      ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      : <Wrench className="w-4 h-4" />}
+                    ▶️ Cheguei — Iniciar Correção
+                  </button>
+                )}
+
+                {/* ── PASSO 3: Finalizar correção ── */}
+                {cs === 'em_correcao' && (
+                  <div className="space-y-3 rounded-2xl p-4" style={{ background: 'var(--bg-input)', border: '1.5px solid #f59e0b44' }}>
+                    <p className="text-sm font-bold" style={{ color: '#92400e' }}>🔧 Descreva o que foi corrigido</p>
+                    <textarea
+                      value={corrObs}
+                      onChange={e => setCorrObs(e.target.value)}
+                      rows={3} className="input w-full"
+                      placeholder="Ex: Ajustei o cabeamento, refiz a emenda, novo teste de velocidade realizado..." />
+
+                    {/* Fotos da correção */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>Fotos da correção ({corrPhotos.length}/10) *</span>
+                        <button onClick={() => fileRef.current?.click()}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold"
+                          style={{ background: 'var(--accent)', color: '#fff' }}>
+                          <Camera className="w-3.5 h-3.5" /> Adicionar Foto
+                        </button>
+                        <input ref={fileRef} type="file" accept="image/*" multiple capture="environment" onChange={addPhoto} className="hidden" />
+                      </div>
+                      {corrPhotos.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {corrPhotos.map((p, i) => (
+                            <div key={i} className="relative">
+                              <img src={p} alt="" className="w-20 h-20 object-cover rounded-lg" />
+                              <button onClick={() => setCorrPhotos(prev => prev.filter((_, j) => j !== i))}
+                                className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs"
+                                style={{ background: '#ef4444' }}>×</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <button onClick={() => handleFinalizar(item)} disabled={submitting || !corrPhotos.length}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white"
+                      style={{ background: corrPhotos.length ? '#16a34a' : '#475569' }}>
+                      {submitting
+                        ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        : <CheckCircle className="w-4 h-4" />}
+                      ✅ Finalizar Correção — Enviar ao Supervisor
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Modal WhatsApp com Link de Grupo ────────────────────────────────────────
+const WPP_GROUP_KEY = 'jd_wpp_group_link';
+
+function WppModal({ os, onClose, sendWppTo }) {
+  const [customPhone, setCustomPhone] = useState('');
+  const [groupLink, setGroupLink] = useState(() => localStorage.getItem(WPP_GROUP_KEY) || '');
+  const [editingGroup, setEditingGroup] = useState(!localStorage.getItem(WPP_GROUP_KEY));
+  const [groupInput, setGroupInput] = useState(() => localStorage.getItem(WPP_GROUP_KEY) || '');
+
+  function saveGroupLink() {
+    const link = groupInput.trim();
+    if (!link) { localStorage.removeItem(WPP_GROUP_KEY); setGroupLink(''); toast.success('Link removido'); }
+    else { localStorage.setItem(WPP_GROUP_KEY, link); setGroupLink(link); toast.success('Link do grupo salvo!'); }
+    setEditingGroup(false);
+  }
+
+  function sendToGroup() {
+    if (!groupLink) return;
+    const msg = buildWppMsg(os);
+    // Abre WhatsApp com o relatório completo pré-preenchido
+    // O técnico seleciona o grupo na tela do WhatsApp e envia
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank');
+    toast.success('📤 Selecione o grupo no WhatsApp e envie!', { duration: 5000 });
+  }
+
+  // Relatório completo reutilizável dentro do WppModal
+  function buildWppMsg(os) {
+    const lines = [];
+    lines.push('*RELATÓRIO DE INSTALAÇÃO - JD TELECOM - GOLD FIBRA*');
+    lines.push('');
+    lines.push('*Cliente:* ' + (os.client_name || ''));
+    lines.push('*OS:* ' + (os.readable_id || os.os_number || ('JD-' + String(os.id).padStart(4,'0'))));
+    lines.push('*Técnico:* ' + (os.technician_name || ''));
+    if (os.scheduled_date) lines.push('*Data:* ' + new Date(os.scheduled_date).toLocaleDateString('pt-BR'));
+    lines.push('*Endereço:* ' + [os.client_street, os.client_number, os.client_neighborhood, os.client_city, os.client_state].filter(Boolean).join(', '));
+    lines.push('');
+    if (os.pppoe_user || os.pppoe_pass) {
+      lines.push('*ACESSO PPPoE*');
+      if (os.pppoe_user) lines.push('Usuário: ' + os.pppoe_user);
+      if (os.pppoe_pass) lines.push('Senha: ' + os.pppoe_pass);
+      lines.push('');
+    }
+    if (os.wifi_name || os.wifi_pass) {
+      lines.push('*WI-FI*');
+      if (os.wifi_name) lines.push('Rede: ' + os.wifi_name);
+      if (os.wifi_pass) lines.push('Senha: ' + os.wifi_pass);
+      lines.push('');
+    }
+    if (os.cto_number) lines.push('*CTO:* ' + os.cto_number + (os.cto_port ? ' — Porta: ' + os.cto_port : ''));
+    if (os.signal_client) lines.push('*Sinal cliente:* ' + os.signal_client + ' dBm');
+    if (os.mac_equipment) lines.push('*MAC ONU:* ' + os.mac_equipment);
+    if (os.tech_observations) { lines.push(''); lines.push('*Observações:* ' + os.tech_observations); }
+    lines.push('');
+    lines.push('✅ Instalação concluída com sucesso!');
+    lines.push('_JD TELECOM - GOLD FIBRA_');
+    return lines.join('\n');
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+      <div className="rounded-2xl p-6 w-full max-w-sm" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Enviar Relatório via WhatsApp</h3>
+        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Escolha para quem deseja enviar:</p>
+
+        {/* Botão: Cliente */}
+        {os.client_whatsapp && (
+          <button onClick={() => { sendWppTo(os, os.client_whatsapp); onClose(); }}
+            className="w-full flex items-center gap-3 p-3 rounded-xl mb-2 font-semibold text-sm"
+            style={{ background: '#25d36620', border: '1px solid #25d366', color: '#25d366' }}>
+            <span className="text-lg">👤</span>
+            <div className="text-left">
+              <p className="font-bold">Cliente</p>
+              <p className="text-xs opacity-70">{os.client_name} — {os.client_whatsapp}</p>
+            </div>
+          </button>
+        )}
+
+        {/* Botão: Grupo salvo */}
+        {groupLink && !editingGroup && (
+          <button onClick={sendToGroup}
+            className="w-full flex items-center gap-3 p-3 rounded-xl mb-2 font-semibold text-sm"
+            style={{ background: '#128C7E20', border: '1px solid #128C7E', color: '#128C7E' }}>
+            <span className="text-lg">👥</span>
+            <div className="text-left flex-1 min-w-0">
+              <p className="font-bold">Grupo WhatsApp</p>
+              <p className="text-xs opacity-70">Copia relatório e abre o grupo direto</p>
+            </div>
+            <button onClick={e => { e.stopPropagation(); setEditingGroup(true); setGroupInput(groupLink); }}
+              className="text-xs px-2 py-1 rounded-lg ml-1 flex-shrink-0"
+              style={{ background: '#128C7E30', color: '#128C7E' }}>
+              ✏️
+            </button>
+          </button>
+        )}
+
+        {/* Editar/Adicionar link de grupo */}
+        {editingGroup && (
+          <div className="mb-3 p-3 rounded-xl" style={{ background: 'var(--bg-input)', border: '1px solid #128C7E44' }}>
+            <label className="text-xs font-bold mb-1 block" style={{ color: '#128C7E' }}>
+              👥 Link do Grupo WhatsApp
+              <span className="font-normal ml-1" style={{ color: 'var(--text-muted)' }}>(salvo para todas as OS)</span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                value={groupInput}
+                onChange={e => setGroupInput(e.target.value)}
+                placeholder="https://chat.whatsapp.com/..."
+                className="input flex-1 text-sm"
+                autoFocus
+              />
+              <button onClick={saveGroupLink}
+                className="px-3 py-2 rounded-xl font-bold text-sm text-white flex-shrink-0"
+                style={{ background: '#128C7E' }}>
+                💾 Salvar
+              </button>
+            </div>
+            {!groupLink && (
+              <button onClick={() => setEditingGroup(false)}
+                className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                Cancelar
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Adicionar grupo (se não tem) */}
+        {!groupLink && !editingGroup && (
+          <button onClick={() => setEditingGroup(true)}
+            className="w-full flex items-center gap-2 p-2.5 rounded-xl mb-2 text-sm font-semibold"
+            style={{ background: 'var(--bg-input)', border: '1px dashed #128C7E44', color: '#128C7E' }}>
+            <span>👥</span> + Adicionar link do grupo WhatsApp
+          </button>
+        )}
+
+        {/* Número personalizado */}
+        <div className="mb-3">
+          <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-muted)' }}>Ou enviar para outro número:</label>
+          <div className="flex gap-2">
+            <input type="tel" value={customPhone} onChange={e => setCustomPhone(e.target.value)}
+              placeholder="(00) 00000-0000" className="input flex-1" maxLength={15} />
+            <button onClick={() => { if (customPhone) { sendWppTo(os, customPhone); onClose(); } else toast.error('Digite um número'); }}
+              className="px-4 py-2 rounded-xl font-bold text-sm text-white"
+              style={{ background: '#25d366' }}>
+              Enviar
+            </button>
+          </div>
+        </div>
+
+        <button onClick={onClose} className="w-full py-2 rounded-xl text-sm font-semibold" style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}>
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function TechnicalOrders() {
   const { user } = useAuth();
   const [cancelModal, setCancelModal] = useState(null);
@@ -111,12 +555,14 @@ export default function TechnicalOrders() {
   const [photos, setPhotos] = useState({});
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [wppModal, setWppModal] = useState(null); // { os, customPhone }
   const fileRefs = useRef({});
   const [showPppoePass, setShowPppoePass] = useState(false);
   const [showWifiPass, setShowWifiPass] = useState(false);
   const [earnings, setEarnings] = useState(null);
   const [deletePhotoModal, setDeletePhotoModal] = useState(null);
   const [signatures, setSignatures] = useState({}); // { [osId]: base64 }
+  const [activeSection, setActiveSection] = useState('ordens'); // ordens | estoque
 
   async function finalizeWithSignature(osId) {
     if (!signatures[osId]) {
@@ -166,6 +612,27 @@ export default function TechnicalOrders() {
       socket.off('os:nova', onNova);
       socket.off('os:removida', onRemovida);
     };
+  }, [chatCtx?.socket]);
+
+  // Transmitir localização em tempo real para o admin (a cada 30s)
+  useEffect(() => {
+    const socket = chatCtx?.socket;
+    if (!socket) return;
+    function sendLocation() {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude, longitude } = pos.coords;
+        socket.emit('tech:location', { latitude, longitude, geo_address: null });
+        // Tentar resolver endereço em background
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
+          .then(r => r.json())
+          .then(d => { if (d.display_name) socket.emit('tech:location', { latitude, longitude, geo_address: d.display_name }); })
+          .catch(() => {});
+      }, () => {}, { enableHighAccuracy: false, timeout: 8000 });
+    }
+    sendLocation(); // envia imediatamente ao entrar
+    const interval = setInterval(sendLocation, 30000);
+    return () => clearInterval(interval);
   }, [chatCtx?.socket]);
 
   async function captureGeo(id) {
@@ -386,11 +853,15 @@ export default function TechnicalOrders() {
   }
 
   function sendWhatsApp(os) {
-    const phone = (os.client_whatsapp || '').replace(/\D/g, '');
-    if (!phone) { toast.error('Cliente sem WhatsApp cadastrado'); return; }
-    const full = phone.length <= 11 ? '55' + phone : phone;
+    setWppModal({ os, customPhone: '' });
+  }
+
+  function sendWppTo(os, phone) {
     const msg = buildWhatsAppMsg(os);
+    const clean = phone.replace(/\D/g, '');
+    const full = clean.length <= 11 ? '55' + clean : clean;
     window.open(`https://wa.me/${full}?text=${encodeURIComponent(msg)}`, '_blank');
+    setWppModal(null);
   }
 
   const active = orders.filter(o => !['finalizado','cancelado'].includes(o.status));
@@ -410,6 +881,23 @@ export default function TechnicalOrders() {
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{orders.length} ordens de serviço</p>
       </div>
 
+      {/* Tab navigation */}
+      <div style={{ display: 'flex', gap: 0, background: '#f1f5f9', borderRadius: 12, padding: 4 }}>
+        {[['ordens', '📋 Ordens'], ['qualidade', '🔍 Controle de Qualidade'], ['estoque', '📦 Estoque']].map(([v, l]) => (
+          <button key={v} onClick={() => setActiveSection(v)} style={{
+            flex: 1, padding: '10px 0', borderRadius: 9, border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+            background: activeSection === v ? '#fff' : 'transparent',
+            color: activeSection === v ? '#1e293b' : '#64748b',
+            boxShadow: activeSection === v ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+          }}>{l}</button>
+        ))}
+      </div>
+
+      {activeSection === 'estoque' && <TechStock />}
+
+      {activeSection === 'qualidade' && <VistoriaTecnica />}
+
+      {activeSection === 'ordens' && <>
       {/* Active OS */}
       <div>
         <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Ordens Ativas ({active.length})</h2>
@@ -668,6 +1156,8 @@ export default function TechnicalOrders() {
                       <button onClick={()=>saveCliente(os.id)} disabled={saving||uploading} className="btn-primary text-sm w-full" style={{background:'#16a34a'}}>
                         {saving||uploading?'Salvando...':'Salvar Cliente'}
                       </button>
+                      {/* ── Instalar ONU ── */}
+                      <InstalarONU os={os} onInstalled={() => load()} />
                     </div>
                     {/* ── MATERIAL / DROP ── */}
                     <div>
@@ -929,6 +1419,7 @@ export default function TechnicalOrders() {
           </p>
         </div>
       )}
+      </>}
     </div>
 
     <AdminDeleteModal
@@ -946,6 +1437,15 @@ export default function TechnicalOrders() {
     )}
     {ctoModal && <CTOModal os={ctoModal} onClose={() => setCtoModal(null)} />}
     {maintenanceModal && <MaintenanceModal os={maintenanceModal} onClose={() => setMaintenanceModal(null)} />}
+
+    {/* Modal: escolher destinatário do WhatsApp */}
+    {wppModal && (
+      <WppModal
+        os={wppModal.os}
+        onClose={() => setWppModal(null)}
+        sendWppTo={sendWppTo}
+      />
+    )}
     </>
   );
 }

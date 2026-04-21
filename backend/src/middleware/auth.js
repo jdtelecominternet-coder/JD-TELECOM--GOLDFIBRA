@@ -10,6 +10,18 @@ function authMiddleware(req, res, next) {
     const token = auth.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+    req.token = token;
+
+    // Verifica se é sessão ativa (1 dispositivo por login)
+    try {
+      const { getDb } = require('../database');
+      const db = getDb();
+      const row = db.prepare('SELECT active_token FROM users WHERE id=?').get(decoded.id);
+      if (row && row.active_token && row.active_token !== token) {
+        return res.status(401).json({ error: 'session_replaced', message: '🔒 Sua sessão foi encerrada. Outro dispositivo acessou sua conta.' });
+      }
+    } catch {}
+
     next();
   } catch {
     return res.status(401).json({ error: 'Token inválido' });
