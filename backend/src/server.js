@@ -162,7 +162,8 @@ async function start() {
   app.use('/api/cto', require('./routes/cto'));
   app.use('/api/maintenance', require('./routes/maintenance'));
   app.use('/api/stock',       require('./routes/stock'));
-  app.use('/api/tipos-os', require('./routes/tiposOs'));
+  app.use('/api/deploy',      require('./routes/deploy'));
+  app.use('/api/tipos-os',    require('./routes/tiposOs'));
   app.use('/api/providers', require('./routes/providers'));
   app.use('/api/provisioning', require('./routes/provisioning'));
   app.use('/api/quality-control', require('./routes/qualityControl'));

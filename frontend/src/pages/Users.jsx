@@ -38,17 +38,26 @@ const GLOBAL_PERM_LABELS = {
     { key: 'technical',       label: 'Modulo Tecnico',        icon: '🛠️' },
     { key: 'reports',         label: 'Relatorios',            icon: '📈' },
     { key: 'chat',            label: 'Chat',                  icon: '💬' },
+    { key: 'ai',              label: 'Assistente IA',         icon: '🤖' },
     { key: 'settings',        label: 'Configuracoes',         icon: '⚙️' },
   ],
   manutencao: [
+    { key: 'dashboard',    label: 'Dashboard',            icon: '📊' },
     { key: 'servico_rede', label: 'Modulo Serv. de Rede', icon: '🌐' },
+    { key: 'clients',      label: 'Clientes',             icon: '🤝' },
+    { key: 'orders',       label: 'Ordens de Servico',    icon: '📋' },
     { key: 'chat',         label: 'Chat',                 icon: '💬' },
+    { key: 'ai',           label: 'Assistente IA',        icon: '🤖' },
     { key: 'reports',      label: 'Relatorios',           icon: '📈' },
     { key: 'settings',     label: 'Configuracoes',        icon: '⚙️' },
   ],
   qualidade: [
+    { key: 'dashboard',       label: 'Dashboard',             icon: '📊' },
     { key: 'quality_control', label: 'Controle de Qualidade', icon: '✅' },
+    { key: 'clients',         label: 'Clientes',              icon: '🤝' },
+    { key: 'orders',          label: 'Ordens de Servico',     icon: '📋' },
     { key: 'chat',            label: 'Chat',                  icon: '💬' },
+    { key: 'ai',              label: 'Assistente IA',         icon: '🤖' },
     { key: 'reports',         label: 'Relatorios',            icon: '📈' },
     { key: 'settings',        label: 'Configuracoes',         icon: '⚙️' },
   ],
@@ -72,6 +81,9 @@ export default function Users() {
   const [adminAuthPw, setAdminAuthPw] = useState('');
   const [adminAuthError, setAdminAuthError] = useState('');
   const [savingGlobal, setSavingGlobal] = useState(false);
+  const [globalAuthModal, setGlobalAuthModal] = useState(null); // role pendente
+  const [globalAuthPw, setGlobalAuthPw] = useState('');
+  const [globalAuthError, setGlobalAuthError] = useState('');
   // ── Painel Estoque Admin ──
   const [stockOpen, setStockOpen] = useState(false);
   const [allStock, setAllStock] = useState([]);
@@ -147,7 +159,25 @@ export default function Users() {
       });
     });
   }, []);
-  async function saveGlobalPerms(role) { setSavingGlobal(true); try { await api.put("/settings/role-permissions", { role, permissions: globalPerms[role] }); toast.success("Permissoes salvas!"); } catch { toast.error("Erro"); } finally { setSavingGlobal(false); } }
+  async function saveGlobalPerms(role) {
+    // Pede senha do admin principal antes de salvar
+    setGlobalAuthPw('');
+    setGlobalAuthError('');
+    setGlobalAuthModal(role);
+  }
+  async function confirmGlobalAuth() {
+    try {
+      await api.post('/users/verify-admin-password', { password: globalAuthPw });
+      const role = globalAuthModal;
+      setGlobalAuthModal(null);
+      setSavingGlobal(true);
+      try { await api.put("/settings/role-permissions", { role, permissions: globalPerms[role] }); toast.success("Permissoes salvas!"); }
+      catch { toast.error("Erro ao salvar"); }
+      finally { setSavingGlobal(false); }
+    } catch {
+      setGlobalAuthError('Senha incorreta. Tente novamente.');
+    }
+  }
   function toggleGlobalPerm(role, key) { setGlobalPerms(prev => ({ ...prev, [role]: { ...(prev[role] || {}), [key]: !(prev[role] || {})[key] } })); }
 
   async function save() {
@@ -665,6 +695,39 @@ export default function Users() {
               <button onClick={confirmAdminAuth} disabled={!adminAuthPw}
                 style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', background: adminAuthPw ? '#3b82f6' : '#334155', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
                 🔓 Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal senha para salvar permissões globais */}
+      {globalAuthModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 380, border: '1.5px solid #f59e0b80' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <Shield style={{ color: '#f59e0b', width: 22, height: 22 }} />
+              <h3 style={{ margin: 0, fontWeight: 800, color: 'var(--text-primary)', fontSize: 17 }}>Confirmação do Admin Principal</h3>
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 18 }}>
+              Para alterar as <strong style={{ color: '#f59e0b' }}>Permissões Globais</strong>, confirme a senha do administrador principal:
+            </p>
+            <input
+              type="password" value={globalAuthPw}
+              onChange={e => { setGlobalAuthPw(e.target.value); setGlobalAuthError(''); }}
+              onKeyDown={e => e.key === 'Enter' && confirmGlobalAuth()}
+              placeholder="Senha do administrador principal" autoFocus
+              style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: `1.5px solid ${globalAuthError ? '#dc2626' : 'var(--border)'}`, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 14, boxSizing: 'border-box', marginBottom: 8 }}
+            />
+            {globalAuthError && <div style={{ color: '#dc2626', fontSize: 12, marginBottom: 10 }}>❌ {globalAuthError}</div>}
+            <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+              <button onClick={() => setGlobalAuthModal(null)}
+                style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontWeight: 700, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={confirmGlobalAuth} disabled={!globalAuthPw}
+                style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', background: globalAuthPw ? '#f59e0b' : '#334155', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                🔓 Confirmar e Salvar
               </button>
             </div>
           </div>

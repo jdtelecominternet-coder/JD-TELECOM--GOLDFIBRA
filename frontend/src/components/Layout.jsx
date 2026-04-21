@@ -27,7 +27,7 @@ const navItems = [
   { to: '/stock-admin',     label: 'Estoque Técnico',       icon: Package,        roles: ['admin'] },
   { to: '/providers',  label: 'Provedor / CORE',       icon: Server,       roles: ['admin'], masterOnly: true },
   { to: '/chat',      label: 'Chat',                   icon: MessageCircle, roles: ['admin','tecnico','vendedor','manutencao','qualidade'], badge: true },
-  { to: '/ai',        label: 'Assistente IA',          icon: Bot,          roles: ['admin','tecnico','vendedor'] },
+  { to: '/ai',        label: 'Assistente IA',          icon: Bot,          roles: ['admin'] },
   { to: '/settings',  label: 'Configuracoes',          icon: Settings,     roles: ['admin'] },
   { to: '/sales',     label: 'Gestao de Vendas',       icon: TrendingUp,   roles: ['admin'] },
   { to: '/history',   label: 'Servicos Executados',    icon: History,      roles: ['admin'] },

@@ -37,6 +37,18 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    target: 'es2017',
+    cssTarget: 'safari13',
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+      }
+    }
+  },
   server: {
     port: 5173,
     host: '0.0.0.0',
