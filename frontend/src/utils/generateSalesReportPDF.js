@@ -26,7 +26,7 @@ export function generateSalesReportPDF(vendedor, orders) {
   doc.setFontSize(18); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
   doc.text('RELATÓRIO DE VENDAS',14,16);
   doc.setFontSize(9); doc.setFont('helvetica','normal');
-  doc.text('JD TELECOM — GOLD FIBRA',14,23);
+  doc.text('SysFlowCloudi — SysFlowCloudi',14,23);
   doc.text(`Emitido em: ${now}`,14,29);
   doc.setFontSize(11); doc.setFont('helvetica','bold');
   doc.text(`Vendedor: ${vendedor.name||'—'}`,W-14,16,{align:'right'});
@@ -94,7 +94,7 @@ export function generateSalesReportPDF(vendedor, orders) {
   const pages=doc.internal.getNumberOfPages();
   for(let i=1;i<=pages;i++){
     doc.setPage(i); doc.setFontSize(7); doc.setTextColor(...GRAY);
-    doc.text(`Página ${i} de ${pages} — JD TELECOM / GOLD FIBRA`,W/2,290,{align:'center'});
+    doc.text(`Página ${i} de ${pages} — SysFlowCloudi / SysFlowCloudi`,W/2,290,{align:'center'});
   }
 
   const safe=(vendedor.name||'vendedor').replace(/\s+/g,'_');

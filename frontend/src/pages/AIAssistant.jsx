@@ -5,7 +5,7 @@ const GROQ_API_KEY = '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';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'llama-3.3-70b-versatile';
 
-const SYSTEM_PROMPT = `Você é o assistente da JD TELECOM - GOLD FIBRA, uma empresa de internet fibra óptica.
+const SYSTEM_PROMPT = `Você é o assistente da SysFlowCloudi, uma empresa de internet fibra óptica.
 Você ajuda técnicos, vendedores e administradores com:
 - Dúvidas técnicas sobre fibra óptica, PPPoE, OLT, CTO, splitter
 - Sugestões de texto para observações de OS (ordem de serviço)
@@ -44,7 +44,7 @@ async function askGroq(messages) {
 
 export default function AIAssistant() {
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Olá! Sou o assistente da JD TELECOM. Posso te ajudar com dúvidas técnicas, textos de observação, procedimentos de instalação e muito mais. Como posso ajudar?' }
+    { role: 'assistant', content: 'Olá! Sou o assistente da SysFlowCloudi. Posso te ajudar com dúvidas técnicas, textos de observação, procedimentos de instalação e muito mais. Como posso ajudar?' }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -94,7 +94,7 @@ export default function AIAssistant() {
           <div>
             <h1 className="text-xl font-black" style={{ color: 'var(--text-primary)' }}>Assistente IA</h1>
             <p className="text-xs flex items-center gap-1" style={{ color: '#10b981' }}>
-              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Online · LLaMA 3 · JD Telecom
+              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Online · LLaMA 3 · SysFlowCloudi
             </p>
           </div>
         </div>

@@ -15,7 +15,7 @@ const uploadLogo = multer({ storage: logoStorage, limits: { fileSize: 5 * 1024 *
 router.get('/', (req, res) => {
   const db = getDb();
   const s = db.prepare('SELECT * FROM settings WHERE id=1').get();
-  res.json(s || { company_name: 'JD TELECOM - GOLD FIBRA', logo_url: null, seller_commission_type: 'percent', seller_commission_value: 10, tech_commission_value: 50 });
+  res.json(s || { company_name: 'SysFlowCloudi', logo_url: null, seller_commission_type: 'percent', seller_commission_value: 10, tech_commission_value: 50 });
 });
 
 // POST /api/settings/logo

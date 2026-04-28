@@ -13,25 +13,34 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { to: '/',          label: 'Dashboard',        icon: LayoutDashboard, roles: ['admin','vendedor','tecnico'], end: true },
-  { to: '/users',     label: 'Usuários',          icon: Users,           roles: ['admin'] },
-  { to: '/clients',   label: 'Clientes',          icon: UserCheck,       roles: ['admin','vendedor'] },
-  { to: '/plans',     label: 'Planos',            icon: Package,         roles: ['admin','vendedor','tecnico'] },
-  { to: '/orders',    label: 'Ordens de Serviço', icon: ClipboardList,   roles: ['admin','vendedor'] },
-  { to: '/technical', label: 'Módulo Técnico',    icon: Wrench,          roles: ['admin','tecnico'] },
-  { to: '/reports',   label: 'Relatórios',          icon: FileBarChart,   roles: ['admin'] },
-  { to: '/relatorio-tecnicos', label: 'Relatório Técnicos', icon: ClipboardCheck, roles: ['admin'] },
-  { to: '/cto-ocorrencias', label: 'Ocorrências CTO',  icon: AlertCircle,  roles: ['admin'] },
-  { to: '/servico-rede',    label: 'Serviço de Rede',  icon: Network,      roles: ['admin', 'manutencao'] },
-  { to: '/quality-control', label: 'Controle de Qualidade', icon: CheckCircle, roles: ['admin', 'qualidade'] },
-  { to: '/stock-admin',     label: 'Estoque Técnico',       icon: Package,        roles: ['admin'] },
-  { to: '/providers',  label: 'Provedor / CORE',       icon: Server,       roles: ['admin'], masterOnly: true },
-  { to: '/chat',      label: 'Chat',                   icon: MessageCircle, roles: ['admin','tecnico','vendedor','manutencao','qualidade'], badge: true },
-  { to: '/ai',        label: 'Assistente IA',          icon: Bot,          roles: ['admin'] },
-  { to: '/settings',  label: 'Configuracoes',          icon: Settings,     roles: ['admin'] },
-  { to: '/sales',     label: 'Gestao de Vendas',       icon: TrendingUp,   roles: ['admin'] },
-  { to: '/history',   label: 'Servicos Executados',    icon: History,      roles: ['admin'] },
-  { to: '/solicitations', label: 'Solicitacoes',       icon: Radio,        roles: ['admin'], badge: 'solicitations' },
+  // ─── SETOR ADMINISTRATIVO ───
+  { to: '/',          label: 'Dashboard',        icon: LayoutDashboard, roles: ['admin','vendedor','tecnico'], end: true, section: 'admin' },
+  { to: '/users',     label: 'Usuários',          icon: Users,           roles: ['admin'], section: 'admin' },
+  { to: '/clients',   label: 'Clientes',          icon: UserCheck,       roles: ['admin','vendedor'], section: 'admin' },
+  { to: '/plans',     label: 'Planos',            icon: Package,         roles: ['admin','vendedor','tecnico'], section: 'admin' },
+  { to: '/orders',    label: 'Ordens de Serviço', icon: ClipboardList,   roles: ['admin','vendedor'], section: 'admin' },
+  
+  // ─── SETOR TÉCNICO ───
+  { to: '/technical', label: 'Módulo Técnico',    icon: Wrench,          roles: ['admin','tecnico'], section: 'tecnico' },
+  { to: '/cto-ocorrencias', label: 'Ocorrências CTO',  icon: AlertCircle,  roles: ['admin'], section: 'tecnico' },
+  { to: '/servico-rede',    label: 'Serviço de Rede',  icon: Network,      roles: ['admin', 'manutencao'], section: 'tecnico' },
+  { to: '/stock-admin',     label: 'Estoque Técnico',       icon: Package,        roles: ['admin'], section: 'tecnico' },
+  { to: '/quality-control', label: 'Controle de Qualidade', icon: CheckCircle, roles: ['admin', 'qualidade'], section: 'tecnico' },
+  { to: '/providers',  label: 'Provedor / CORE',       icon: Server,       roles: ['admin'], masterOnly: true, section: 'tecnico' },
+  
+  // ─── SETOR FINANCEIRO/VENDAS ───
+  { to: '/sales',     label: 'Gestão de Vendas',       icon: TrendingUp,   roles: ['admin'], section: 'vendas' },
+  { to: '/history',   label: 'Serviços Executados',    icon: History,      roles: ['admin'], section: 'vendas' },
+  { to: '/reports',   label: 'Relatórios',          icon: FileBarChart,   roles: ['admin'], section: 'vendas' },
+  { to: '/relatorio-tecnicos', label: 'Relatório de Técnicos', icon: ClipboardCheck, roles: ['admin'], section: 'vendas' },
+  
+  // ─── SETOR COMUNICAÇÃO ───
+  { to: '/chat',      label: 'Chat',                   icon: MessageCircle, roles: ['admin','tecnico','vendedor','manutencao','qualidade'], badge: true, section: 'comunicacao' },
+  { to: '/solicitations', label: 'Solicitações',       icon: Radio,        roles: ['admin'], badge: 'solicitations', section: 'comunicacao' },
+  
+  // ─── SETOR SISTEMA ───
+  { to: '/ai',        label: 'Assistente IA',          icon: Bot,          roles: ['admin'], section: 'sistema' },
+  { to: '/settings',  label: 'Configurações',          icon: Settings,     roles: ['admin'], section: 'sistema' },
 ];
 
 // Permissões padrão por role
@@ -130,7 +139,7 @@ export default function Layout() {
             playNotification('new');
             showToast(`📩 Nova solicitação de cliente recebida!`, 'success');
             if (Notification.permission === 'granted') {
-              new Notification('JD TELECOM', { body: 'Nova solicitação de cliente recebida!', icon: '/logo192.png' });
+              new Notification('SysFlowCloudi', { body: 'Nova solicitação de cliente recebida!', icon: '/logo192.png' });
             }
           }
           prevSolCount.current = pending;
@@ -154,13 +163,13 @@ export default function Layout() {
             playNotification('new');
             showToast('📋 Nova Ordem de Serviço atribuída a você!', 'success');
             if (Notification.permission === 'granted') {
-              new Notification('JD TELECOM', { body: 'Nova Ordem de Serviço atribuída a você!', icon: '/logo192.png' });
+              new Notification('SysFlowCloudi', { body: 'Nova Ordem de Serviço atribuída a você!', icon: '/logo192.png' });
             }
           } else if (count < prevOsCount.current) {
             playNotification('remove');
             showToast('❌ Uma Ordem de Serviço foi removida.', 'error');
             if (Notification.permission === 'granted') {
-              new Notification('JD TELECOM', { body: 'Uma Ordem de Serviço foi removida.', icon: '/logo192.png' });
+              new Notification('SysFlowCloudi', { body: 'Uma Ordem de Serviço foi removida.', icon: '/logo192.png' });
             }
           }
         }
@@ -182,14 +191,14 @@ export default function Layout() {
       playNotification('new');
       showToast('📋 Nova Ordem de Serviço atribuída a você!', 'success');
       if (Notification.permission === 'granted') {
-        new Notification('JD TELECOM', { body: 'Nova Ordem de Serviço atribuída a você!', icon: '/logo192.png' });
+        new Notification('SysFlowCloudi', { body: 'Nova Ordem de Serviço atribuída a você!', icon: '/logo192.png' });
       }
     };
     const onRemovida = () => {
       playNotification('remove');
       showToast('❌ Uma Ordem de Serviço foi removida.', 'error');
       if (Notification.permission === 'granted') {
-        new Notification('JD TELECOM', { body: 'Uma Ordem de Serviço foi removida.', icon: '/logo192.png' });
+        new Notification('SysFlowCloudi', { body: 'Uma Ordem de Serviço foi removida.', icon: '/logo192.png' });
       }
     };
     const onRedeEnviada = (data) => {
@@ -272,13 +281,28 @@ export default function Layout() {
   // Filtrar navItems respeitando permissions customizadas ou role padrão
   const filtered = navItems.filter(i => {
     if (!i.roles.includes(user?.role)) return false;
-    if (i.masterOnly && user?.id !== 1) return false; // Provedor/CORE só para ID=1
+    if (i.masterOnly && user?.id !== 1) return false;
     if (user?.role === 'admin') return true;
     const key = routePermKey[i.to];
-    if (!key) return true; // dashboard e profile sempre visíveis
+    if (!key) return true;
     if (user?.permissions && user.permissions[key] !== undefined) return user.permissions[key];
     return defaultPerms[user?.role]?.[key] !== false;
   });
+
+  // Agrupar por setor
+  const sectionLabels = {
+    admin: '📋 Administrativo',
+    tecnico: '🔧 Técnico',
+    vendas: '💰 Financeiro/Vendas',
+    comunicacao: '💬 Comunicação',
+    sistema: '⚙️ Sistema'
+  };
+  const sectionOrder = ['admin', 'tecnico', 'vendas', 'comunicacao', 'sistema'];
+  const grouped = sectionOrder.map(sec => ({
+    section: sec,
+    label: sectionLabels[sec],
+    items: filtered.filter(i => i.section === sec)
+  })).filter(g => g.items.length > 0);
 
   const SidebarContent = ({ collapsed = false }) => (
     <div className="flex flex-col h-full" style={{ background: 'var(--bg-sidebar)' }}>
@@ -290,32 +314,43 @@ export default function Layout() {
             : <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0"><Wifi className="w-5 h-5 text-white" /></div>}
           {!collapsed && (
             <div>
-              <p className="text-white font-black text-sm leading-tight">JD TELECOM</p>
-              <p className="text-blue-300 text-xs font-semibold tracking-wider">GOLD FIBRA</p>
+              <p className="text-white font-black text-sm leading-tight">SysFlowCloudi</p>
+              <p className="text-blue-300 text-xs font-semibold tracking-wider">SysFlowCloudi</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {filtered.map(item => (
-          <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''} ${collapsed ? 'justify-center px-2' : ''}`}
-            title={collapsed ? item.label : ''}>
-            <item.icon className="w-4 h-4 flex-shrink-0" />
-            {!collapsed && <span className="flex-1">{item.label}</span>}
-            {!collapsed && (item.badge === true && unreadTotal > 0
-              ? <span className="bg-red-500 text-white text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center">{unreadTotal > 99 ? '99+' : unreadTotal}</span>
-              : item.badge === 'solicitations' && pendingSolicitations > 0
-              ? <span className="bg-orange-500 text-white text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center">{pendingSolicitations > 99 ? '99+' : pendingSolicitations}</span>
-              : item.to === '/servico-rede' && redeAdminCount > 0
-              ? <span className="bg-green-500 text-white text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center">{redeAdminCount > 99 ? '99+' : redeAdminCount}</span>
-              : <ChevronRight className="w-3 h-3 opacity-30" />)}
-            {collapsed && item.badge === true && unreadTotal > 0 && (
-              <span className="absolute top-1 right-1 bg-red-500 text-white text-xs font-black rounded-full w-4 h-4 flex items-center justify-center">{unreadTotal > 9 ? '9+' : unreadTotal}</span>
+      <nav className="flex-1 p-3 overflow-y-auto">
+        {grouped.map((group, idx) => (
+          <div key={group.section} className={idx > 0 ? 'mt-4' : ''}>
+            {!collapsed && (
+              <div className="px-2 mb-2 text-[10px] font-bold uppercase tracking-wider opacity-50" style={{ color: 'var(--text-sidebar)' }}>
+                {group.label}
+              </div>
             )}
-          </NavLink>
+            <div className="space-y-0.5">
+              {group.items.map(item => (
+                <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setSidebarOpen(false)}
+                  className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''} ${collapsed ? 'justify-center px-2' : ''}`}
+                  title={collapsed ? item.label : ''}>
+                  <item.icon className="w-4 h-4 flex-shrink-0" />
+                  {!collapsed && <span className="flex-1">{item.label}</span>}
+                  {!collapsed && (item.badge === true && unreadTotal > 0
+                    ? <span className="bg-red-500 text-white text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center">{unreadTotal > 99 ? '99+' : unreadTotal}</span>
+                    : item.badge === 'solicitations' && pendingSolicitations > 0
+                    ? <span className="bg-orange-500 text-white text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center">{pendingSolicitations > 99 ? '99+' : pendingSolicitations}</span>
+                    : item.to === '/servico-rede' && redeAdminCount > 0
+                    ? <span className="bg-green-500 text-white text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center">{redeAdminCount > 99 ? '99+' : redeAdminCount}</span>
+                    : <ChevronRight className="w-3 h-3 opacity-30" />)}
+                  {collapsed && item.badge === true && unreadTotal > 0 && (
+                    <span className="absolute top-1 right-1 bg-red-500 text-white text-xs font-black rounded-full w-4 h-4 flex items-center justify-center">{unreadTotal > 9 ? '9+' : unreadTotal}</span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 
@@ -497,7 +532,7 @@ export default function Layout() {
           </button>
           <div className="flex items-center gap-2">
             <Wifi className="w-5 h-5" style={{ color: 'var(--accent)' }} />
-            <span className="font-black text-sm" style={{ color: 'var(--text-primary)' }}>JD TELECOM</span>
+            <span className="font-black text-sm" style={{ color: 'var(--text-primary)' }}>SysFlowCloudi</span>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={toggle} className="p-2 rounded-lg" style={{ color: 'var(--text-secondary)' }}>

@@ -168,11 +168,11 @@ async function start() {
   app.use('/api/provisioning', require('./routes/provisioning'));
   app.use('/api/quality-control', require('./routes/qualityControl'));
 
-  app.get('/api/health', (req, res) => res.json({ status: 'OK', system: 'JD TELECOM - GOLD FIBRA' }));
+  app.get('/api/health', (req, res) => res.json({ status: 'OK', system: 'SysFlowCloudi' }));
 
   httpServer.listen(PORT, () => {
     console.log(`\n========================================`);
-    console.log(`  JD TELECOM - GOLD FIBRA - Backend`);
+    console.log(`  SysFlowCloudi - Backend`);
     console.log(`  Server: http://localhost:${PORT}`);
     console.log(`  Login: JD000001 / admin123`);
     console.log(`========================================\n`);

@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['logo192.png', 'logo512.png'],
       manifest: {
-        name: 'JD Telecom — Gold Fibra',
-        short_name: 'JD Telecom',
-        description: 'Sistema de gestao JD Telecom Gold Fibra',
+        name: 'SysFlowCloudi',
+        short_name: 'SysFlowCloudi',
+        description: 'Sistema de Gestão Empresarial — SysFlowCloudi',
         theme_color: '#1e50b4',
         background_color: '#0f172a',
         display: 'standalone',

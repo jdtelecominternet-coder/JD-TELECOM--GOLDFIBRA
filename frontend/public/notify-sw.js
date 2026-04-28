@@ -1,4 +1,4 @@
-// Service Worker JD TELECOM - Offline + Notificações
+// Service Worker SysFlowCloudi - Offline + Notificações
 const CACHE_NAME = 'jd-telecom-v2';
 const STATIC_ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/logo192.png', '/favicon.png'];
 
@@ -56,7 +56,7 @@ self.addEventListener('fetch', e => {
 // Notificações em background
 self.addEventListener('message', e => {
   if (e.data?.type === 'NOTIFY') {
-    self.registration.showNotification(e.data.title || 'JD TELECOM', {
+    self.registration.showNotification(e.data.title || 'SysFlowCloudi', {
       body: e.data.body,
       icon: '/logo192.png',
       badge: '/favicon.png',

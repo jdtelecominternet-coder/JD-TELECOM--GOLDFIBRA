@@ -71,7 +71,7 @@ function OrderCard({ order, onDelete, isAdmin }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-bold text-sm font-mono" style={{color:'var(--accent)'}}>{order.readable_id||order.os_number}</span>
-            {order.gold_fibra_id && <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{background:'#f59e0b22',color:'#f59e0b'}}>ID GoldFibra: {order.gold_fibra_id}</span>}
+            {order.gold_fibra_id && <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{background:'#f59e0b22',color:'#f59e0b'}}>ID sysflowcloudi: {order.gold_fibra_id}</span>}
             <span className={`badge-${order.status}`}>{statusLabel[order.status]||order.status}</span>
             {order.tipo_ordem_servico && (
               <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{background:'rgba(99,102,241,0.15)',color:'#818cf8'}}>
@@ -219,7 +219,7 @@ export default function ServiceHistory() {
 
       <div className="relative">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{color:'var(--text-muted)'}} />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por cliente, OS, tecnico ou ID GoldFibra..." className="input pl-9" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por cliente, OS, tecnico ou ID sysflowcloudi..." className="input pl-9" />
       </div>
 
       {loading ? (

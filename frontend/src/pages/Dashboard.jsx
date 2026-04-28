@@ -460,7 +460,7 @@ export default function Dashboard() {
             <h1 className="text-2xl font-black" style={{ color: 'var(--text-primary)' }}>
               Olá, <span style={{ color: 'var(--accent)' }}>{user.name.split(' ')[0]}</span>!
             </h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Bem-vindo ao JD TELECOM - GOLD FIBRA</p>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Bem-vindo ao SysFlowCloudi</p>
           </div>
         </div>
         <button onClick={load} className="btn-secondary p-2" title="Atualizar dashboard">

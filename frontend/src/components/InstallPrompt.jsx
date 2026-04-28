@@ -88,7 +88,7 @@ export default function InstallPrompt() {
             }
           `}</style>
 
-          <img src="/logo192.png" alt="JD Telecom" style={{
+          <img src="/logo192.png" alt="SysFlowCloudi" style={{
             width: '80px', height: '80px',
             borderRadius: '20px',
             boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
@@ -97,7 +97,7 @@ export default function InstallPrompt() {
           }} />
 
           <p style={{ margin: '0 0 4px', fontWeight: 900, fontSize: '20px', color: '#fff' }}>
-            Instalar JD Telecom
+            Instalar SysFlowCloudi
           </p>
           <p style={{ margin: '0 0 24px', fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>
             Instale como aplicativo no seu computador<br />e acesse com um clique pela área de trabalho
@@ -125,7 +125,7 @@ export default function InstallPrompt() {
                 <Monitor size={14} /> Como instalar no PC:
               </p>
               <p style={{ margin: 0 }}>1. Clique nos <b>⋮ três pontos</b> do Chrome/Edge</p>
-              <p style={{ margin: 0 }}>2. Clique em <b>"Instalar JD Telecom..."</b></p>
+              <p style={{ margin: 0 }}>2. Clique em <b>"Instalar SysFlowCloudi..."</b></p>
               <p style={{ margin: 0 }}>3. Confirme clicando em <b>Instalar ✅</b></p>
             </div>
           )}
@@ -181,7 +181,7 @@ export default function InstallPrompt() {
           margin: '0 auto 24px',
         }} />
 
-        <img src="/logo192.png" alt="JD Telecom" style={{
+        <img src="/logo192.png" alt="SysFlowCloudi" style={{
           width: '88px', height: '88px',
           borderRadius: '22px',
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
@@ -190,7 +190,7 @@ export default function InstallPrompt() {
         }} />
 
         <p style={{ margin: '0 0 6px', fontWeight: 900, fontSize: '22px', color: '#fff' }}>
-          Instalar JD Telecom
+          Instalar SysFlowCloudi
         </p>
         <p style={{ margin: '0 0 28px', fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
           Adicione à sua tela inicial e acesse<br />como um aplicativo instalado

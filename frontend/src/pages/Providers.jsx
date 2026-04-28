@@ -204,7 +204,7 @@ export default function Providers() {
               {tab === 0 && (
                 <>
                   <Field label="Nome do Provedor" required>
-                    <input style={inp} value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: JD Telecom" />
+                    <input style={inp} value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: SysFlowCloudi" />
                   </Field>
                   <Field label="Tipo de Autenticação">
                     <select style={sel} value={form.tipo_auth} onChange={e => set('tipo_auth', e.target.value)}>

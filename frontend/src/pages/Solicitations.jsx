@@ -32,7 +32,7 @@ function gerarPDF(s) {
     @media print{body{padding:16px}}
   </style></head><body>
   <div class="logo">
-    <h1>JD Telecom — Gold Fibra</h1>
+    <h1>SysFlowCloudi — SysFlowCloudi</h1>
     <div class="sub">Solicitacao de Instalacao • ${dataSol}</div>
   </div>
   <div class="section">
@@ -57,7 +57,7 @@ function gerarPDF(s) {
     </div>
     ${s.observations ? `<div class="field" style="margin-top:10px"><label>Observações</label><span>${s.observations}</span></div>` : ''}
   </div>
-  <div class="footer">JD Telecom — Gold Fibra | jdtelecom.online | Documento gerado em ${new Date().toLocaleDateString('pt-BR')}</div>
+  <div class="footer">SysFlowCloudi — SysFlowCloudi | jdtelecom.online | Documento gerado em ${new Date().toLocaleDateString('pt-BR')}</div>
   <script>window.onload=()=>{window.print();}<\/script>
   </body></html>`;
 
@@ -73,7 +73,7 @@ function enviarWhatsApp(s) {
   const addr = [s.street, s.number, s.neighborhood, s.city].filter(Boolean).join(', ');
   const msg = encodeURIComponent(
     `Olá ${s.name}! 👋\n\n` +
-    `Recebemos sua solicitação de instalação da *Gold Fibra*! 🚀\n\n` +
+    `Recebemos sua solicitação de instalação da *SysFlowCloudi*! 🚀\n\n` +
     `📋 *Resumo do Pedido:*\n` +
     `• Nome: ${s.name}\n` +
     (s.cpf ? `• CPF: ${s.cpf}\n` : '') +

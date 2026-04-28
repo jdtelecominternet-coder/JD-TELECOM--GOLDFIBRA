@@ -179,12 +179,12 @@ export default function Orders() {
     } catch { toast.error('Erro ao gerar PDF'); }
   }
 
-  function sendWhatsAppGoldFibra(order) {
+  function sendWhatsAppsysflowcloudi(order) {
     const phone = '5543991599136';
     const data = order.scheduled_date ? new Date(order.scheduled_date).toLocaleDateString('pt-BR') : 'A confirmar';
     const preco = order.plan_price ? `R$ ${parseFloat(order.plan_price).toFixed(2).replace('.',',')}` : '—';
     const lines = [
-      '*📋 NOVA VENDA - GOLD FIBRA*',
+      '*📋 NOVA VENDA - SysFlowCloudi*',
       '',
       `*OS:* ${order.readable_id || order.os_number}`,
       `*Cliente:* ${order.client_name || '—'}`,
@@ -199,7 +199,7 @@ export default function Orders() {
       `*Data Instalação:* ${data}`,
       `*Técnico:* ${order.technician_name || 'A definir'}`,
       `*Vendedor:* ${order.seller_name || '—'}`,
-      order.gold_fibra_id ? `*ID Gold Fibra:* ${order.gold_fibra_id}` : '',
+      order.gold_fibra_id ? `*ID SysFlowCloudi:* ${order.gold_fibra_id}` : '',
       order.observations ? `*Observações:* ${order.observations}` : '',
     ].filter(Boolean).join('\n');
     window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(lines), '_blank');
@@ -362,15 +362,15 @@ export default function Orders() {
               </button>
               <button onClick={() => {
                 const phone = '55' + (lastOrder.client_whatsapp || '').replace(/\D/g,'');
-                const msg = `*PEDIDO DE SERVIÇO - JD TELECOM*\n\nOlá *${lastOrder.client_name}*! 👋\n\nSeu pedido foi registrado com sucesso!\n\n*OS:* ${lastOrder.readable_id || lastOrder.os_number}\n*Plano:* ${lastOrder.plan_name || ''}\n*Data:* ${lastOrder.scheduled_date ? new Date(lastOrder.scheduled_date).toLocaleDateString('pt-BR') : 'A confirmar'}\n\nEm breve nossa equipe entrará em contato para agendar a instalação.\n\nAtenciosamente,\n*JD TELECOM - GOLD FIBRA*`;
+                const msg = `*PEDIDO DE SERVIÇO - SysFlowCloudi*\n\nOlá *${lastOrder.client_name}*! 👋\n\nSeu pedido foi registrado com sucesso!\n\n*OS:* ${lastOrder.readable_id || lastOrder.os_number}\n*Plano:* ${lastOrder.plan_name || ''}\n*Data:* ${lastOrder.scheduled_date ? new Date(lastOrder.scheduled_date).toLocaleDateString('pt-BR') : 'A confirmar'}\n\nEm breve nossa equipe entrará em contato para agendar a instalação.\n\nAtenciosamente,\n*SysFlowCloudi*`;
                 window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
               }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white text-sm" style={{background:'#25d366'}}>
                 💬 Enviar confirmação via WhatsApp
               </button>
-              <button onClick={() => sendWhatsAppGoldFibra(lastOrder)}
+              <button onClick={() => sendWhatsAppsysflowcloudi(lastOrder)}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white text-sm"
                 style={{background:'#128C7E'}}>
-                📤 Enviar para GoldFibra via WhatsApp
+                📤 Enviar para sysflowcloudi via WhatsApp
               </button>
               <button onClick={() => setModal(null)} className="text-sm" style={{color:'var(--text-muted)'}}>Fechar</button>
             </div>
@@ -445,7 +445,7 @@ export default function Orders() {
                 <input type="date" value={form.scheduled_date||''} onChange={e=>setForm(p=>({...p,scheduled_date:e.target.value}))} className="input" />
               </div>
               <div>
-                <label className="label">ID Gold Fibra <span style={{color:'var(--text-muted)',fontWeight:'normal',fontSize:'0.75rem'}}>(fornecido pela operadora)</span></label>
+                <label className="label">ID SysFlowCloudi <span style={{color:'var(--text-muted)',fontWeight:'normal',fontSize:'0.75rem'}}>(fornecido pela operadora)</span></label>
                 <input value={form.gold_fibra_id||''} onChange={e=>setForm(p=>({...p,gold_fibra_id:e.target.value}))} className="input" placeholder="Ex: GF-2024-00123" />
               </div>
               {user.role === 'admin' && <div><label className="label">Observações</label>
@@ -646,7 +646,7 @@ export default function Orders() {
               {user.role === 'admin' && selected.observations && <div className="col-span-2"><p style={{ color: 'var(--text-muted)' }}>Observações</p><p style={{ color: 'var(--text-primary)' }}>{selected.observations}</p></div>}
               {selected.gold_fibra_id && (
                 <div className="col-span-2 p-3 rounded-lg" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)' }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--accent)' }}>ID Gold Fibra (Operadora)</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--accent)' }}>ID SysFlowCloudi (Operadora)</p>
                   <div className="flex items-center gap-2">
                     <p className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>{selected.gold_fibra_id}</p>
                     <button onClick={() => { navigator.clipboard.writeText(selected.gold_fibra_id); }} className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--accent)', color: '#fff' }}>Copiar</button>
@@ -685,10 +685,10 @@ export default function Orders() {
               </div>
             )}
             <div className="mt-5 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
-              <button onClick={() => sendWhatsAppGoldFibra(selected)}
+              <button onClick={() => sendWhatsAppsysflowcloudi(selected)}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-white text-sm"
                 style={{background:'#128C7E'}}>
-                📤 Enviar OS para GoldFibra via WhatsApp
+                📤 Enviar OS para sysflowcloudi via WhatsApp
               </button>
             </div>
           </div>

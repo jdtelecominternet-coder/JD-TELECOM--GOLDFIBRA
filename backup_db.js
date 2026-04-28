@@ -2,7 +2,7 @@ const { Client } = require('ssh2');
 const fs = require('fs');
 const path = require('path');
 
-const config = { host: '72.61.28.164', port: 22, username: 'root', password: '@Suremi135706' };
+const config = { host: '72.61.28.164', port: 22, username: 'root', password: '@Rebecca135706' };
 
 const date = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const backupPath = path.join(__dirname, 'backups', `database_backup_${date}.sqlite3`);
@@ -13,7 +13,7 @@ conn.on('ready', () => {
   conn.sftp((err, sftp) => {
     if (err) { console.error('Erro SFTP:', err); return conn.end(); }
 
-    const remote = '/var/www/goldfibra/database.sqlite3.bin';
+    const remote = '/var/www/sysflowcloudi/database.sqlite3.bin';
     sftp.fastGet(remote, backupPath, { step: (total, nb, fsize) => {
       process.stdout.write(`\r  Baixando: ${Math.round((total/fsize)*100)}%`);
     }}, (err) => {

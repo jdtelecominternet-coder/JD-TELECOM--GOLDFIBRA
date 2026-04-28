@@ -79,7 +79,7 @@ async function initDatabase() {
     CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY,
       logo_url TEXT,
-      company_name TEXT DEFAULT 'JD TELECOM - GOLD FIBRA',
+      company_name TEXT DEFAULT 'SysFlowCloudi',
       seller_commission_type TEXT DEFAULT 'percent',
       seller_commission_value REAL DEFAULT 10,
       tech_commission_value REAL DEFAULT 50,
@@ -346,7 +346,7 @@ async function initDatabase() {
   const s = _db.prepare('SELECT COUNT(*) as c FROM settings').get();
   if (!s || s.c === 0) {
     _db.prepare(`INSERT INTO settings (id, company_name, seller_commission_type, seller_commission_value, tech_commission_value)
-      VALUES (1, 'JD TELECOM - GOLD FIBRA', 'percent', 10, 50)`).run();
+      VALUES (1, 'SysFlowCloudi', 'percent', 10, 50)`).run();
   }
 
   // ── Seed tipos_ordem_servico ─────────────────────────────────────────────

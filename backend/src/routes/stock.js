@@ -222,6 +222,53 @@ router.put('/:id', authMiddleware, (req, res) => {
   res.json({ message: 'Atualizado com sucesso' });
 });
 
+// ── POST /api/stock/retirar — técnico retira ONU disponível ──────────────
+router.post('/retirar', authMiddleware, (req, res) => {
+  const db = getDb();
+  const { stock_id, obs } = req.body;
+  if (!stock_id) return res.status(400).json({ error: 'stock_id obrigatório' });
+
+  const item = db.prepare('SELECT * FROM tech_stock WHERE id=?').get(stock_id);
+  if (!item) return res.status(404).json({ error: 'ONU não encontrada' });
+  if (item.tech_id !== req.user.id && req.user.role !== 'admin') return res.status(403).json({ error: 'Sem permissão' });
+  if (item.status !== 'disponivel') return res.status(409).json({ error: 'ONU não está disponível' });
+
+  db.prepare(`UPDATE tech_stock SET status='utilizado', used_at=datetime('now'), obs=? WHERE id=?`)
+    .run(obs || 'Retirada manual pelo técnico', item.id);
+  log(db, item.id, item.tech_id, 'saida', { obs: obs || 'Retirada manual pelo técnico' });
+  res.json({ message: 'ONU retirada do estoque com sucesso' });
+});
+
+// ── POST /api/stock/swap — técnico troca ONU em uso por outra disponível ──
+router.post('/swap', authMiddleware, (req, res) => {
+  const db = getDb();
+  const { old_id, new_mac, motivo, obs } = req.body;
+  if (!old_id || !new_mac) return res.status(400).json({ error: 'old_id e new_mac obrigatórios' });
+
+  const oldItem = db.prepare('SELECT * FROM tech_stock WHERE id=?').get(old_id);
+  if (!oldItem) return res.status(404).json({ error: 'ONU antiga não encontrada' });
+  if (oldItem.tech_id !== req.user.id && req.user.role !== 'admin') return res.status(403).json({ error: 'Sem permissão' });
+
+  const mac = formatMac(new_mac);
+  const newItem = db.prepare('SELECT * FROM tech_stock WHERE mac_address=?').get(mac);
+  if (!newItem) return res.status(404).json({ error: `ONU ${mac} não encontrada no estoque` });
+  if (newItem.tech_id !== req.user.id && req.user.role !== 'admin') return res.status(403).json({ error: 'Nova ONU não está no seu estoque' });
+  if (newItem.status !== 'disponivel') return res.status(409).json({ error: 'Nova ONU não está disponível' });
+
+  const newStatus = motivo === 'defeito' ? 'defeito' : 'disponivel';
+
+  // Troca: antiga volta (disponivel ou defeito), nova assume client/os
+  db.prepare(`UPDATE tech_stock SET status=?, client_id=NULL, os_id=NULL, obs=? WHERE id=?`)
+    .run(newStatus, obs || `Trocada por ${mac}`, oldItem.id);
+  db.prepare(`UPDATE tech_stock SET status='utilizado', client_id=?, os_id=?, used_at=datetime('now') WHERE id=?`)
+    .run(oldItem.client_id || null, oldItem.os_id || null, newItem.id);
+
+  log(db, oldItem.id, req.user.id, motivo === 'defeito' ? 'defeito' : 'entrada', { obs: `Substituída por ${mac}` });
+  log(db, newItem.id, req.user.id, 'saida', { client_id: oldItem.client_id, os_id: oldItem.os_id, obs: `Troca: substituiu ${oldItem.mac_address}` });
+
+  res.json({ message: `Troca realizada: ${oldItem.mac_address} → ${mac}` });
+});
+
 // ── DELETE /api/stock/:id — remover ONU ───────────────────────────────────
 router.delete('/:id', authMiddleware, adminOnly, (req, res) => {
   const db = getDb();

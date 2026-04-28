@@ -55,10 +55,10 @@ export default function RelatorioCliente() {
         </div>
 
         <div style={{background:'#1e50b4',color:'#fff',borderRadius:12,padding:'18px 24px',textAlign:'center',marginBottom:20,display:'flex',alignItems:'center',justifyContent:'center',gap:20}}>
-          <img src="/logo-jd.png" alt="JD Telecom" style={{height:70,objectFit:'contain'}} />
+          <img src="/logo-jd.png" alt="SysFlowCloudi" style={{height:70,objectFit:'contain'}} />
           <div>
             <h1 style={{margin:0,fontSize:22,letterSpacing:1}}>RELATÓRIO DE PEDIDO</h1>
-            <p style={{margin:'4px 0 0',fontSize:13,opacity:0.9}}>JD TELECOM — GOLD FIBRA</p>
+            <p style={{margin:'4px 0 0',fontSize:13,opacity:0.9}}>SysFlowCloudi — SysFlowCloudi</p>
           </div>
         </div>
 
@@ -87,7 +87,7 @@ export default function RelatorioCliente() {
           <Row label="Velocidade" val={c.plan_speed ? c.plan_speed + ' Mbps' : null} />
           <Row label="Valor Mensal" val={c.monthly_value ? 'R$ ' + parseFloat(c.monthly_value).toFixed(2) : null} />
           <Row label="Dia de Vencimento" val={c.due_day} />
-          <Row label="ID Gold Fibra" val={c.gold_fibra_id} />
+          <Row label="ID SysFlowCloudi" val={c.gold_fibra_id} />
         </Section>
 
         {(c.pppoe_user || c.pppoe_pass) && (
@@ -112,7 +112,7 @@ export default function RelatorioCliente() {
         </Section>
 
         <div style={{textAlign:'center',fontSize:11,color:'#aaa',marginTop:8}}>
-          JD Telecom — Gold Fibra | jdtelecom.online
+          SysFlowCloudi — SysFlowCloudi | jdtelecom.online
         </div>
       </div>
     </>

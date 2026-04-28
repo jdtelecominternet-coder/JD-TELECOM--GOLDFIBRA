@@ -280,8 +280,9 @@ router.post('/:id/photos', authMiddleware,
 
 // DELETE /api/orders/:id/photo/:field — remove uma foto específica
 const ALLOWED_PHOTO_FIELDS = [
-  'photo_cto_open','photo_cto_closed','photo_signal','photo_meter',
-  'photo_mac','photo_onu','photo_speedtest','photo_cto_open2'
+  'photo_cto_open','photo_cto_closed','photo_signal','photo_signal_cto',
+  'photo_meter','photo_mac','photo_onu','photo_speedtest',
+  'photo_cto_open2','photo_cto','photo_drop','photo_extra'
 ];
 router.delete('/:id/photo/:field', authMiddleware, (req, res) => {
   const db = getDb();

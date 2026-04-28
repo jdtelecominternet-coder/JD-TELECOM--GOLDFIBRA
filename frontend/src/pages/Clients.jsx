@@ -76,7 +76,7 @@ function fmtPhone(v) {
 function buildWhatsAppMsg(c) {
   const lines = [];
   lines.push(`Olá, ${c.name}!`);
-  lines.push(`Seus dados foram cadastrados com sucesso na *JD TELECOM - GOLD FIBRA*.`);
+  lines.push(`Seus dados foram cadastrados com sucesso na *SysFlowCloudi*.`);
   lines.push(``);
   lines.push(`*📋 DADOS DO CADASTRO*`);
   if (c.cpf) lines.push(`CPF: ${fmtCpf(c.cpf)}`);
@@ -106,14 +106,14 @@ function buildWhatsAppMsg(c) {
     lines.push(``);
   }
   lines.push(`Em caso de dúvidas, entre em contato conosco.`);
-  lines.push(`Obrigado por escolher a *JD TELECOM - GOLD FIBRA*! 🌐`);
+  lines.push(`Obrigado por escolher a *SysFlowCloudi*! 🌐`);
   return lines.join('\n');
 }
 
 // ── Gerador de mensagem "Pedido PRF" ─────────────────────────────────────────
 function buildPRFMsg(c) {
   const lines = [];
-  lines.push(`🟢 *PEDIDO DE INSTALAÇÃO - JD TELECOM GOLD FIBRA*`);
+  lines.push(`🟢 *PEDIDO DE INSTALAÇÃO - SysFlowCloudi SysFlowCloudi*`);
   lines.push(`━━━━━━━━━━━━━━━━━━━━━━━`);
   lines.push(``);
   lines.push(`*👤 DADOS DO CLIENTE*`);
@@ -148,7 +148,7 @@ function buildPRFMsg(c) {
     lines.push(``);
   }
   lines.push(`━━━━━━━━━━━━━━━━━━━━━━━`);
-  lines.push(`✅ Pedido registrado pelo sistema JD TELECOM.`);
+  lines.push(`✅ Pedido registrado pelo sistema SysFlowCloudi.`);
   lines.push(`Por favor, confirme o agendamento da instalação.`);
   if (c.id) {
     lines.push(``);
@@ -177,7 +177,7 @@ function gerarPDFCliente(c) {
     .footer{text-align:center;font-size:11px;color:#9ca3af;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:12px}
     @media print{body{padding:16px}}
   </style></head><body>
-  <h1>JD Telecom — Gold Fibra</h1>
+  <h1>SysFlowCloudi — SysFlowCloudi</h1>
   <div class="sub">Ficha de Cliente — Gerado em ${new Date().toLocaleDateString('pt-BR')}</div>
   <div class="section">
     <div class="section-title">Dados Pessoais</div>
@@ -202,7 +202,7 @@ function gerarPDFCliente(c) {
     </div>
   </div>
   ${c.observations ? `<div class="section"><div class="section-title">Observações</div><div class="field"><span>${c.observations}</span></div></div>` : ''}
-  <div class="footer">JD Telecom — Gold Fibra | jdtelecom.online</div>
+  <div class="footer">SysFlowCloudi — SysFlowCloudi | jdtelecom.online</div>
   <script>window.onload=()=>{window.print();}<\/script>
   </body></html>`;
   const win = window.open('', '_blank');

@@ -96,7 +96,7 @@ export default function Reports() {
     doc.rect(0, 0, 210, 38, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16); doc.setFont('helvetica', 'bold');
-    doc.text('JD TELECOM - GOLD FIBRA', 14, 14);
+    doc.text('SysFlowCloudi', 14, 14);
     doc.setFontSize(10); doc.setFont('helvetica', 'normal');
     doc.text(`Relatório: ${REPORT_TYPES.find(r => r.id === type)?.label}`, 14, 24);
     doc.text(`Gerado em: ${now}`, 14, 31);
@@ -166,7 +166,7 @@ export default function Reports() {
       }
       // Footer pages
       const pages = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Pág ${i}/${pages} — JD TELECOM GOLD FIBRA`, 14, doc.internal.pageSize.height - 8); }
+      for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Pág ${i}/${pages} — SysFlowCloudi SysFlowCloudi`, 14, doc.internal.pageSize.height - 8); }
       doc.save(`relatorio_comissoes_${new Date().toISOString().slice(0,10)}.pdf`);
       toast.success('PDF gerado!'); return;
     }
@@ -180,7 +180,7 @@ export default function Reports() {
     });
 
     const pages = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Pág ${i}/${pages} — JD TELECOM GOLD FIBRA`, 14, doc.internal.pageSize.height - 8); }
+    for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Pág ${i}/${pages} — SysFlowCloudi SysFlowCloudi`, 14, doc.internal.pageSize.height - 8); }
     doc.save(`relatorio_${type}_${new Date().toISOString().slice(0,10)}.pdf`);
     toast.success('PDF gerado!');
   }

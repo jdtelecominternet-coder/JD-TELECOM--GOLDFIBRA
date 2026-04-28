@@ -2,7 +2,7 @@ const { Client } = require('ssh2');
 
 const HOST = 'jdtelecom.online';
 const USER = 'root';
-const PASS = '@Suremi135706';
+const PASS = '@Rebecca135706';
 
 let output = '';
 
@@ -25,12 +25,12 @@ async function main(conn) {
   // Step 1: Find nginx config file
   await runCmd(conn, 'NGINX TEST', 'nginx -t 2>&1');
   await runCmd(conn, 'NGINX SITES-AVAILABLE', 'ls /etc/nginx/sites-available/ 2>/dev/null; echo "---conf.d---"; ls /etc/nginx/conf.d/ 2>/dev/null');
-  await runCmd(conn, 'FIND GOLDFIBRA NGINX CONFIG', 'grep -rl goldfibra /etc/nginx/ 2>/dev/null; grep -rl 3001 /etc/nginx/ 2>/dev/null');
+  await runCmd(conn, 'FIND sysflowcloudi NGINX CONFIG', 'grep -rl sysflowcloudi /etc/nginx/ 2>/dev/null; grep -rl 3001 /etc/nginx/ 2>/dev/null');
 
   // Step 2: Determine the config file and read it
   let configFile = '';
   await new Promise((resolve) => {
-    conn.exec('grep -rl goldfibra /etc/nginx/ 2>/dev/null | head -1 || grep -rl 3001 /etc/nginx/ 2>/dev/null | head -1', (err, stream) => {
+    conn.exec('grep -rl sysflowcloudi /etc/nginx/ 2>/dev/null | head -1 || grep -rl 3001 /etc/nginx/ 2>/dev/null | head -1', (err, stream) => {
       if (err) return resolve();
       stream.on('data', d => { configFile += d.toString().trim(); });
       stream.stderr.on('data', () => {});
@@ -47,8 +47,8 @@ async function main(conn) {
   }
 
   // Step 3: Check index.html
-  await runCmd(conn, 'INDEX HTML EXISTS', 'ls -la /var/www/goldfibra/frontend/index.html 2>&1');
-  await runCmd(conn, 'INDEX HTML CONTENT (first 60 lines)', 'head -60 /var/www/goldfibra/frontend/index.html 2>&1');
+  await runCmd(conn, 'INDEX HTML EXISTS', 'ls -la /var/www/sysflowcloudi/frontend/index.html 2>&1');
+  await runCmd(conn, 'INDEX HTML CONTENT (first 60 lines)', 'head -60 /var/www/sysflowcloudi/frontend/index.html 2>&1');
 
   // Step 4: Add no-cache headers to nginx config if not already present
   const checkCmd = configFile
@@ -112,13 +112,13 @@ fi
   await runCmd(conn, 'NGINX RELOAD', 'nginx -s reload 2>&1');
 
   // Step 6: PM2 logs
-  await runCmd(conn, 'PM2 LOGS', 'pm2 logs goldfibra --lines 50 --nostream 2>&1');
+  await runCmd(conn, 'PM2 LOGS', 'pm2 logs sysflowcloudi --lines 50 --nostream 2>&1');
 
   // Step 7: Backend API test
   await runCmd(conn, 'BACKEND API TEST', 'curl -s -o /tmp/api_resp.txt -w "HTTP_STATUS:%{http_code}" http://localhost:3001/api/plans -H "Authorization: Bearer test" 2>&1; echo; cat /tmp/api_resp.txt 2>/dev/null');
 
   // Step 8: PM2 restart
-  await runCmd(conn, 'PM2 RESTART', 'pm2 restart goldfibra 2>&1');
+  await runCmd(conn, 'PM2 RESTART', 'pm2 restart sysflowcloudi 2>&1');
 
   // Step 9: PM2 status after restart
   await runCmd(conn, 'PM2 STATUS', 'pm2 list 2>&1');

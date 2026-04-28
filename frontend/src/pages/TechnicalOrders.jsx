@@ -415,7 +415,7 @@ function WppModal({ os, onClose, sendWppTo }) {
   // Relatório completo reutilizável dentro do WppModal
   function buildWppMsg(os) {
     const lines = [];
-    lines.push('*RELATÓRIO DE INSTALAÇÃO - JD TELECOM - GOLD FIBRA*');
+    lines.push('*RELATÓRIO DE INSTALAÇÃO - SysFlowCloudi*');
     lines.push('');
     lines.push('*Cliente:* ' + (os.client_name || ''));
     lines.push('*OS:* ' + (os.readable_id || os.os_number || ('JD-' + String(os.id).padStart(4,'0'))));
@@ -441,7 +441,7 @@ function WppModal({ os, onClose, sendWppTo }) {
     if (os.tech_observations) { lines.push(''); lines.push('*Observações:* ' + os.tech_observations); }
     lines.push('');
     lines.push('✅ Instalação concluída com sucesso!');
-    lines.push('_JD TELECOM - GOLD FIBRA_');
+    lines.push('_SysFlowCloudi_');
     return lines.join('\n');
   }
 
@@ -809,7 +809,7 @@ export default function TechnicalOrders() {
 
   function buildWhatsAppMsg(os) {
     const lines = [];
-    lines.push('*RELATÓRIO DE INSTALAÇÃO - JD TELECOM - GOLD FIBRA*');
+    lines.push('*RELATÓRIO DE INSTALAÇÃO - SysFlowCloudi*');
     lines.push('');
     lines.push('*Cliente:* ' + (os.client_name || ''));
     lines.push('*OS:* ' + (os.readable_id || os.os_number || ('JD-' + String(os.id).padStart(4,'0'))));
@@ -929,7 +929,7 @@ export default function TechnicalOrders() {
                       <CopyId id={os.readable_id || os.os_number} />
                     {os.gold_fibra_id && (
                       <div className="mt-1.5 p-2 rounded-lg inline-flex items-center gap-2" style={{background:"rgba(59,130,246,0.15)",border:"1px solid rgba(59,130,246,0.3)"}}>
-                        <span className="text-xs font-semibold" style={{color:"var(--accent)"}}>ID Gold Fibra:</span>
+                        <span className="text-xs font-semibold" style={{color:"var(--accent)"}}>ID SysFlowCloudi:</span>
                         <span className="font-mono font-bold text-sm" style={{color:"var(--text-primary)"}}>{os.gold_fibra_id}</span>
                       </div>
                     )}
@@ -1279,7 +1279,7 @@ export default function TechnicalOrders() {
 
                     {/* ── WHATSAPP ── */}
                     <button onClick={() => sendWhatsApp(os)} className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm text-white mt-2" style={{background:'#25d366'}}>
-                      <MessageCircle className="w-5 h-5" /> Enviar Relatório via WhatsApp (GoldFibra)
+                      <MessageCircle className="w-5 h-5" /> Enviar Relatório via WhatsApp (sysflowcloudi)
                     </button>
                   </div>
                 )}

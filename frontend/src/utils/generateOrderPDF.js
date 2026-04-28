@@ -62,7 +62,7 @@ export function generateOrderPDF(order) {
   doc.setFontSize(20);
   doc.setTextColor(...WHITE);
   doc.setFont('helvetica', 'bold');
-  doc.text('JD TELECOM - GOLD FIBRA', 14, 16);
+  doc.text('SysFlowCloudi', 14, 16);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
@@ -166,7 +166,7 @@ export function generateOrderPDF(order) {
     ['Vendedor', order.seller_name || '---'],
     ['Tecnico', order.technician_name || 'A definir'],
   ];
-  if (order.gold_fibra_id) equipeRows.push(['ID Gold Fibra', order.gold_fibra_id]);
+  if (order.gold_fibra_id) equipeRows.push(['ID SysFlowCloudi', order.gold_fibra_id]);
 
   autoTable(doc, {
     startY: y,
@@ -239,7 +239,7 @@ export function generateOrderPDF(order) {
   doc.setFontSize(7);
   doc.setTextColor(...GRAY);
   doc.setFont('helvetica', 'normal');
-  doc.text('JD TELECOM - GOLD FIBRA  |  Documento gerado automaticamente pelo sistema', W / 2, H - 7, { align: 'center' });
+  doc.text('SysFlowCloudi  |  Documento gerado automaticamente pelo sistema', W / 2, H - 7, { align: 'center' });
 
   // Download
   const filename = `OS-${order.readable_id || order.os_number || 'pedido'}.pdf`;

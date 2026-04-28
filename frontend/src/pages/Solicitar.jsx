@@ -206,7 +206,7 @@ export default function Solicitar() {
     const num = submittedForm.whatsapp.replace(/\D/g,'');
     const plan = selectedPlan ? selectedPlan.name + (selectedPlan.speed ? ' - ' + selectedPlan.speed + ' Mbps' : '') + (selectedPlan.price ? ' - R$ ' + parseFloat(selectedPlan.price).toFixed(2) : '') : 'Nao informado';
     const addr = [submittedForm.street, submittedForm.number, submittedForm.complement, submittedForm.neighborhood, submittedForm.city, submittedForm.state].filter(Boolean).join(', ');
-    const msg = encodeURIComponent(`Ola ${submittedForm.name}! 👋\n\nRecebemos sua solicitacao de instalacao da *Gold Fibra*! 🚀\n\n📋 *Resumo do Pedido:*\n• Nome: ${submittedForm.name}\n• CPF: ${submittedForm.cpf || 'Nao informado'}\n• WhatsApp: ${submittedForm.whatsapp}\n${addr ? '• Endereco: '+addr+'\n' : ''}• Plano: ${plan}\n• Periodo: ${submittedForm.install_period === 'manha' ? 'Manha' : submittedForm.install_period === 'tarde' ? 'Tarde' : 'Nao informado'}\n${submittedForm.observations ? '• Obs: '+submittedForm.observations+'\n' : ''}\nEm breve nossa equipe entrara em contato para agendar a instalacao. ✅`);
+    const msg = encodeURIComponent(`Ola ${submittedForm.name}! 👋\n\nRecebemos sua solicitacao de instalacao da *SysFlowCloudi*! 🚀\n\n📋 *Resumo do Pedido:*\n• Nome: ${submittedForm.name}\n• CPF: ${submittedForm.cpf || 'Nao informado'}\n• WhatsApp: ${submittedForm.whatsapp}\n${addr ? '• Endereco: '+addr+'\n' : ''}• Plano: ${plan}\n• Periodo: ${submittedForm.install_period === 'manha' ? 'Manha' : submittedForm.install_period === 'tarde' ? 'Tarde' : 'Nao informado'}\n${submittedForm.observations ? '• Obs: '+submittedForm.observations+'\n' : ''}\nEm breve nossa equipe entrara em contato para agendar a instalacao. ✅`);
     window.open(`https://wa.me/55${num}?text=${msg}`, '_blank');
   }
 
@@ -220,7 +220,7 @@ export default function Solicitar() {
 
   const header = (
     <div style={{background:'#1e50b4',color:'#fff',padding:'20px 24px',textAlign:'center',marginBottom:24}}>
-      <img src="/logo-jd.png" alt="JD Telecom" style={{height:60,objectFit:'contain',marginBottom:8,display:'block',margin:'0 auto 8px'}} />
+      <img src="/logo-jd.png" alt="SysFlowCloudi" style={{height:60,objectFit:'contain',marginBottom:8,display:'block',margin:'0 auto 8px'}} />
       <h1 style={{margin:0,fontSize:22,fontWeight:800}}>Solicitar Instalacao</h1>
       <p style={{margin:'4px 0 0',opacity:0.85,fontSize:14}}>Preencha seus dados e entraremos em contato</p>
     </div>
@@ -240,7 +240,7 @@ export default function Solicitar() {
           <div style={{fontSize:56,marginBottom:16}}>🔒</div>
           <h2 style={{color:'#dc2626',margin:'0 0 12px'}}>Link ja Utilizado</h2>
           <p style={{color:'#555',lineHeight:1.6}}>Este link ja foi usado para uma solicitacao. Solicite um novo link ao vendedor.</p>
-          <p style={{color:'#888',fontSize:13,marginTop:16}}>JD Telecom — Gold Fibra</p>
+          <p style={{color:'#888',fontSize:13,marginTop:16}}>SysFlowCloudi — SysFlowCloudi</p>
         </div>
       </div>
     </div>
@@ -254,7 +254,7 @@ export default function Solicitar() {
           <div style={{fontSize:56,marginBottom:16}}>❌</div>
           <h2 style={{color:'#dc2626',margin:'0 0 12px'}}>Link Invalido</h2>
           <p style={{color:'#555',lineHeight:1.6}}>Este link e invalido ou expirou. Solicite um novo link ao vendedor.</p>
-          <p style={{color:'#888',fontSize:13,marginTop:16}}>JD Telecom — Gold Fibra</p>
+          <p style={{color:'#888',fontSize:13,marginTop:16}}>SysFlowCloudi — SysFlowCloudi</p>
         </div>
       </div>
     </div>
@@ -272,7 +272,7 @@ export default function Solicitar() {
             style={{marginTop:24,background:'#25d366',color:'#fff',border:'none',borderRadius:10,padding:'14px 24px',fontSize:15,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:8,margin:'24px auto 0'}}>
             📲 Receber Confirmacao no WhatsApp
           </button>
-          <p style={{color:'#888',fontSize:13,marginTop:16}}>JD Telecom — Gold Fibra</p>
+          <p style={{color:'#888',fontSize:13,marginTop:16}}>SysFlowCloudi — SysFlowCloudi</p>
         </div>
       </div>
     </div>
@@ -361,7 +361,7 @@ export default function Solicitar() {
           style={{background:sending?'#9ca3af':'#1e50b4',color:'#fff',border:'none',borderRadius:10,padding:'14px',fontSize:16,fontWeight:700,cursor:sending?'not-allowed':'pointer',boxShadow:'0 2px 8px rgba(30,80,180,0.3)'}}>
           {sending ? 'Enviando...' : 'Enviar Solicitacao'}
         </button>
-        <p style={{textAlign:'center',fontSize:12,color:'#9ca3af',margin:0}}>JD Telecom — Gold Fibra | jdtelecom.online</p>
+        <p style={{textAlign:'center',fontSize:12,color:'#9ca3af',margin:0}}>SysFlowCloudi — SysFlowCloudi | jdtelecom.online</p>
       </form>
     </div>
   );

@@ -47,7 +47,7 @@ function BiometriaSection() {
       const cred = await navigator.credentials.create({
         publicKey: {
           challenge,
-          rp: { name: 'JD Telecom', id: window.location.hostname },
+          rp: { name: 'SysFlowCloudi', id: window.location.hostname },
           user: {
             id: new TextEncoder().encode(String(user.id)),
             name: user.jd_id,

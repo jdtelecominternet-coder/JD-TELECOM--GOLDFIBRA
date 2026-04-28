@@ -31,8 +31,7 @@ router.post('/verify-admin-password', authMiddleware, adminOnly, (req, res) => {
   const { password } = req.body;
   if (!password) return res.status(400).json({ error: 'Senha obrigatória' });
   // Verifica contra o admin principal: primeiro tenta jd_id '000001', depois menor id com role admin
-  let mainAdmin = db.prepare("SELECT id FROM users WHERE jd_id='000001' AND role='admin'").get();
-  if (!mainAdmin) mainAdmin = db.prepare("SELECT id FROM users WHERE role='admin' ORDER BY id ASC LIMIT 1").get();
+  let mainAdmin = db.prepare("SELECT id FROM users WHERE role='admin' ORDER BY id ASC LIMIT 1").get();
   if (!mainAdmin) return res.status(404).json({ error: 'Admin principal não encontrado' });
   const pw = db.prepare('SELECT hash FROM passwords WHERE user_id=?').get(mainAdmin.id);
   if (!pw) return res.status(404).json({ error: 'Senha não encontrada' });

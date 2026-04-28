@@ -1,7 +1,7 @@
 {
   "name": "jd-telecom-backend",
   "version": "1.0.0",
-  "description": "JD TELECOM - GOLD FIBRA Backend",
+  "description": "SysFlowCloudi Backend",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

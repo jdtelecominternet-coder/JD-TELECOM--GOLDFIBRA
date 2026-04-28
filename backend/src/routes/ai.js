@@ -6,7 +6,7 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY || 'gsk_GzJiaZkaHpSrDKodPwDNWGdyb3
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'llama3-8b-8192';
 
-const SYSTEM_PROMPT = `Você é o assistente da JD TELECOM - GOLD FIBRA, uma empresa de internet fibra óptica.
+const SYSTEM_PROMPT = `Você é o assistente da SysFlowCloudi, uma empresa de internet fibra óptica.
 Você ajuda técnicos, vendedores e administradores com:
 - Dúvidas técnicas sobre fibra óptica, PPPoE, OLT, CTO, splitter
 - Sugestões de texto para observações de OS (ordem de serviço)

@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { Package, Camera, Search, RefreshCw, AlertTriangle, X, Plus } from 'lucide-react';
+import { Package, Camera, Search, RefreshCw, AlertTriangle, X, Plus, ArrowDownCircle, Repeat2 } from 'lucide-react';
 
 // ─── Leitura de código de barras ─────────────────────────────────────────────
 function BarcodeScanner({ onDetect, onClose }) {
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
+  const videoRef    = useRef(null);
+  const canvasRef   = useRef(null);
+  const streamRef   = useRef(null);
   const [scanning, setScanning] = useState(false);
-  const [manual, setManual] = useState('');
-  const [error, setError] = useState('');
+  const [manual, setManual]     = useState('');
+  const [error, setError]       = useState('');
   const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -19,20 +20,48 @@ function BarcodeScanner({ onDetect, onClose }) {
 
   async function startCamera() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play();
       }
       setScanning(true);
 
       if ('BarcodeDetector' in window) {
-        const detector = new window.BarcodeDetector({ formats: ['code_128', 'code_39', 'qr_code', 'ean_13', 'data_matrix'] });
+        const detector = new window.BarcodeDetector({
+          formats: ['code_128', 'code_39', 'qr_code', 'ean_13', 'ean_8', 'data_matrix', 'upc_a', 'upc_e']
+        });
+
         intervalRef.current = setInterval(async () => {
-          if (!videoRef.current) return;
+          const video = videoRef.current;
+          const canvas = canvasRef.current;
+          if (!video || !canvas || video.readyState < 2) return;
+
+          const vw = video.videoWidth;
+          const vh = video.videoHeight;
+          if (!vw || !vh) return;
+
+          // Recorta APENAS a faixa central onde está a linha vermelha
+          // Área de scan: 72% de largura, 38% de altura, centrada
+          const cropW = Math.floor(vw * 0.72);
+          const cropH = Math.floor(vh * 0.38);
+          const cropX = Math.floor((vw - cropW) / 2);
+          const cropY = Math.floor((vh - cropH) / 2);
+
+          // Dentro dessa faixa, lê só uma tira fina no centro (a linha vermelha)
+          const sliceH = Math.max(80, Math.floor(cropH * 0.35));
+          const sliceY = cropY + Math.floor((cropH - sliceH) / 2);
+
+          canvas.width  = cropW;
+          canvas.height = sliceH;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, cropX, sliceY, cropW, sliceH, 0, 0, cropW, sliceH);
+
           try {
-            const barcodes = await detector.detect(videoRef.current);
+            const barcodes = await detector.detect(canvas);
             if (barcodes.length > 0) {
               const value = barcodes[0].rawValue;
               clearInterval(intervalRef.current);
@@ -40,7 +69,7 @@ function BarcodeScanner({ onDetect, onClose }) {
               onDetect(value);
             }
           } catch (_) {}
-        }, 300);
+        }, 250);
       }
     } catch (e) {
       setError('Câmera não disponível. Use o campo manual abaixo.');
@@ -67,11 +96,33 @@ function BarcodeScanner({ onDetect, onClose }) {
         {/* Preview câmera */}
         <div style={{ position: 'relative', background: '#000', minHeight: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <video ref={videoRef} playsInline muted style={{ width: '100%', maxHeight: 300, objectFit: 'cover', display: scanning ? 'block' : 'none' }} />
+          {/* Canvas oculto para recorte da área de leitura */}
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
           {scanning && (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-              <div style={{ width: '65%', height: '35%', border: '2px solid #22c55e', borderRadius: 8, boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)' }} />
-              <div style={{ position: 'absolute', bottom: 12, width: '100%', textAlign: 'center', color: '#22c55e', fontSize: 12, fontWeight: 700 }}>
-                {('BarcodeDetector' in window) ? 'Aponte para o código de barras' : 'API de leitura não disponível. Use o campo manual.'}
+              {/* Área de scan com cantos brancos */}
+              <div style={{ position: 'relative', width: '72%', height: '38%' }}>
+                {/* Sombra fora da área */}
+                <div style={{ position: 'absolute', inset: 0, boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)', borderRadius: 4 }} />
+                {/* Cantos estilo scanner profissional */}
+                {[
+                  { top: 0, left: 0, borderTop: '3px solid #fff', borderLeft: '3px solid #fff', borderRadius: '4px 0 0 0' },
+                  { top: 0, right: 0, borderTop: '3px solid #fff', borderRight: '3px solid #fff', borderRadius: '0 4px 0 0' },
+                  { bottom: 0, left: 0, borderBottom: '3px solid #fff', borderLeft: '3px solid #fff', borderRadius: '0 0 0 4px' },
+                  { bottom: 0, right: 0, borderBottom: '3px solid #fff', borderRight: '3px solid #fff', borderRadius: '0 0 4px 0' },
+                ].map((s, i) => (
+                  <div key={i} style={{ position: 'absolute', width: 22, height: 22, ...s }} />
+                ))}
+                {/* Linha vermelha laser FIXA no centro */}
+                <div style={{
+                  position: 'absolute', left: 4, right: 4, height: 2,
+                  top: '50%', transform: 'translateY(-50%)',
+                  background: 'linear-gradient(90deg, transparent, #ef4444, #ff0000, #ef4444, transparent)',
+                  boxShadow: '0 0 8px 3px rgba(239,68,68,0.85)',
+                }} />
+              </div>
+              <div style={{ position: 'absolute', bottom: 12, width: '100%', textAlign: 'center', color: '#ef4444', fontSize: 12, fontWeight: 700, letterSpacing: 1 }}>
+                {('BarcodeDetector' in window) ? '— Aponte o código para a linha —' : 'Use o campo manual abaixo'}
               </div>
             </div>
           )}
@@ -114,6 +165,13 @@ export default function TechStock() {
   const [showScanner, setShowScanner] = useState(false);
   const [addForm, setAddForm] = useState({ mac_address: '', modelo: '', serial: '', obs: '', status: 'defeito' });
   const [saving, setSaving] = useState(false);
+
+  // Modais novos
+  const [retirarItem, setRetirarItem] = useState(null); // item a retirar
+  const [retirarObs, setRetirarObs] = useState('');
+  const [trocarItem, setTrocarItem] = useState(null); // item a trocar (em uso)
+  const [trocarForm, setTrocarForm] = useState({ new_mac: '', motivo: 'disponivel', obs: '' });
+  const [showTrocarScanner, setShowTrocarScanner] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -160,6 +218,47 @@ export default function TechStock() {
       toast.success('ONU marcada como defeito');
       load(); loadLog();
     } catch { toast.error('Erro ao atualizar'); }
+  }
+
+  function playConfirmSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const play = (freq, start, dur) => {
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = freq; o.type = 'sine';
+        g.gain.setValueAtTime(0.25, ctx.currentTime + start);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+        o.start(ctx.currentTime + start); o.stop(ctx.currentTime + start + dur);
+      };
+      play(660, 0, 0.12); play(880, 0.13, 0.12); play(1100, 0.26, 0.18);
+    } catch (_) {}
+  }
+
+  async function handleRetirar() {
+    if (!retirarItem) return;
+    setSaving(true);
+    try {
+      await api.post('/stock/retirar', { stock_id: retirarItem.id, obs: retirarObs || undefined });
+      playConfirmSound();
+      toast.success('ONU retirada do estoque!');
+      setRetirarItem(null); setRetirarObs('');
+      load(); loadLog();
+    } catch (err) { toast.error(err.response?.data?.error || 'Erro ao retirar'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleTrocar() {
+    if (!trocarItem || !trocarForm.new_mac.trim()) return toast.error('Informe o MAC da nova ONU');
+    setSaving(true);
+    try {
+      await api.post('/stock/swap', { old_id: trocarItem.id, new_mac: trocarForm.new_mac, motivo: trocarForm.motivo, obs: trocarForm.obs || undefined });
+      playConfirmSound();
+      toast.success('Troca realizada com sucesso!');
+      setTrocarItem(null); setTrocarForm({ new_mac: '', motivo: 'disponivel', obs: '' });
+      load(); loadLog();
+    } catch (err) { toast.error(err.response?.data?.error || 'Erro ao trocar'); }
+    finally { setSaving(false); }
   }
 
   const filtered = filterStatus ? stock.filter(i => i.status === filterStatus) : stock;
@@ -305,8 +404,19 @@ export default function TechStock() {
                 </div>
                 {item.obs && <div style={{ fontSize: 12, color: '#64748b', marginTop: 6, fontStyle: 'italic' }}>{item.obs}</div>}
                 {item.status === 'disponivel' && (
-                  <button onClick={() => markDefeito(item)} style={{ ...btnStyle('#dc2626'), marginTop: 10, fontSize: 12, padding: '7px 12px' }}>
-                    <AlertTriangle size={13} /> Marcar Defeito
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    <button onClick={() => { setRetirarItem(item); setRetirarObs(''); }} style={{ ...btnStyle('#0369a1'), fontSize: 12, padding: '7px 12px' }}>
+                      <ArrowDownCircle size={13} /> Retirar
+                    </button>
+                    <button onClick={() => markDefeito(item)} style={{ ...btnStyle('#dc2626'), fontSize: 12, padding: '7px 12px' }}>
+                      <AlertTriangle size={13} /> Marcar Defeito
+                    </button>
+                  </div>
+                )}
+                {item.status === 'utilizado' && (
+                  <button onClick={() => { setTrocarItem(item); setTrocarForm({ new_mac: '', motivo: 'disponivel', obs: '' }); }}
+                    style={{ ...btnStyle('#7c3aed'), marginTop: 10, fontSize: 12, padding: '7px 12px' }}>
+                    <Repeat2 size={13} /> Trocar ONU
                   </button>
                 )}
               </div>
@@ -334,6 +444,68 @@ export default function TechStock() {
       )}
 
       {showScanner && <BarcodeScanner onDetect={onScanDetect} onClose={() => setShowScanner(false)} />}
+
+      {/* Modal: Retirar ONU */}
+      {retirarItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 20, width: '100%', maxWidth: 360 }}>
+            <div style={{ fontWeight: 800, fontSize: 15, color: '#0369a1', marginBottom: 4 }}>📤 Retirar ONU do Estoque</div>
+            <div style={{ fontFamily: 'monospace', fontSize: 13, color: '#334155', marginBottom: 12 }}>{retirarItem.mac_address}</div>
+            <p style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>Esta ONU será marcada como retirada (em uso). Informe o motivo:</p>
+            <textarea value={retirarObs} onChange={e => setRetirarObs(e.target.value)} rows={3}
+              placeholder="Ex: Retirada para instalação em campo..." style={{ ...inputStyle, resize: 'vertical', marginBottom: 12 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleRetirar} disabled={saving} style={{ ...btnStyle('#0369a1'), flex: 1 }}>
+                {saving ? 'Aguarde...' : '✅ Confirmar Retirada'}
+              </button>
+              <button onClick={() => setRetirarItem(null)} style={{ ...btnStyle('#64748b'), flex: 1 }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Trocar ONU */}
+      {trocarItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 20, width: '100%', maxWidth: 380 }}>
+            <div style={{ fontWeight: 800, fontSize: 15, color: '#7c3aed', marginBottom: 4 }}>🔄 Trocar ONU</div>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
+              ONU atual: <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#334155' }}>{trocarItem.mac_address}</span>
+              {trocarItem.client_name && <span> — 👤 {trocarItem.client_name}</span>}
+            </div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>Nova ONU (MAC Address)*</label>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <input value={trocarForm.new_mac} onChange={e => setTrocarForm(f => ({ ...f, new_mac: e.target.value }))}
+                placeholder="MAC da ONU substituta" style={{ ...inputStyle, flex: 1 }} />
+              <button type="button" onClick={() => setShowTrocarScanner(true)} style={{ ...btnStyle('#7c3aed'), padding: '10px 12px', flexShrink: 0 }}>
+                <Camera size={16} />
+              </button>
+            </div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>O que fazer com a ONU trocada?</label>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              {[['disponivel','↩️ Devolver ao estoque'],['defeito','⚠️ Registrar como defeito']].map(([v,l]) => (
+                <button key={v} type="button" onClick={() => setTrocarForm(f => ({ ...f, motivo: v }))}
+                  style={{ flex: 1, padding: '8px 6px', borderRadius: 10, border: `2px solid ${trocarForm.motivo === v ? '#7c3aed' : '#e2e8f0'}`,
+                    background: trocarForm.motivo === v ? '#f5f3ff' : '#f8fafc', color: trocarForm.motivo === v ? '#7c3aed' : '#64748b',
+                    fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <textarea value={trocarForm.obs} onChange={e => setTrocarForm(f => ({ ...f, obs: e.target.value }))} rows={2}
+              placeholder="Motivo da troca (opcional)..." style={{ ...inputStyle, resize: 'vertical', marginBottom: 12 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleTrocar} disabled={saving || !trocarForm.new_mac.trim()} style={{ ...btnStyle('#7c3aed'), flex: 1 }}>
+                {saving ? 'Aguarde...' : '✅ Confirmar Troca'}
+              </button>
+              <button onClick={() => setTrocarItem(null)} style={{ ...btnStyle('#64748b'), flex: 1 }}>Cancelar</button>
+            </div>
+          </div>
+          {showTrocarScanner && (
+            <BarcodeScanner onDetect={v => { setShowTrocarScanner(false); setTrocarForm(f => ({ ...f, new_mac: v })); }} onClose={() => setShowTrocarScanner(false)} />
+          )}
+        </div>
+      )}
     </div>
   );
 }

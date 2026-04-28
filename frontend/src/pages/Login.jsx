@@ -130,8 +130,8 @@ export default function Login() {
             style={{ background: 'var(--accent-light)', border: '1px solid var(--accent)' }}>
             <Wifi className="w-10 h-10" style={{ color: 'var(--accent)' }} />
           </div>
-          <h1 className="text-3xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>JD TELECOM</h1>
-          <p className="font-semibold tracking-widest text-sm mt-1" style={{ color: 'var(--accent)' }}>GOLD FIBRA</p>
+          <h1 className="text-3xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>SysFlowCloudi</h1>
+          <p className="font-semibold tracking-widest text-sm mt-1" style={{ color: 'var(--accent)' }}>SysFlowCloudi</p>
           <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>Sistema de Gestão Empresarial</p>
         </div>
 
@@ -210,7 +210,7 @@ export default function Login() {
 
           <div className="mt-6 pt-4 text-center" style={{ borderTop: '1px solid var(--border)' }}>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Acesso restrito a colaboradores autorizados</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>JD TELECOM - GOLD FIBRA © {new Date().getFullYear()}</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>SysFlowCloudi © {new Date().getFullYear()}</p>
           </div>
         </div>
       </div>

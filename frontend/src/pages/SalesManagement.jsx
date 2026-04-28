@@ -357,7 +357,7 @@ export default function SalesManagement() {
                   <div className="flex-1 min-w-48">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="font-bold text-sm font-mono" style={{ color: 'var(--accent)' }}>{o.readable_id || o.os_number}</span>
-                      {o.gold_fibra_id && <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: '#f59e0b22', color: '#f59e0b' }}>ID GoldFibra: {o.gold_fibra_id}</span>}
+                      {o.gold_fibra_id && <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: '#f59e0b22', color: '#f59e0b' }}>ID sysflowcloudi: {o.gold_fibra_id}</span>}
                       <InstallBadge s={o.status} />
                       <SellerStatusBadge s={sellerStatus} />
                     </div>
