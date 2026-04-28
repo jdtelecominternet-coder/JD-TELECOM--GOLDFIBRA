@@ -13,34 +13,42 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  // ─── SETOR ADMINISTRATIVO ───
-  { to: '/',          label: 'Dashboard',        icon: LayoutDashboard, roles: ['admin','vendedor','tecnico'], end: true, section: 'admin' },
-  { to: '/users',     label: 'Usuários',          icon: Users,           roles: ['admin'], section: 'admin' },
-  { to: '/clients',   label: 'Clientes',          icon: UserCheck,       roles: ['admin','vendedor'], section: 'admin' },
-  { to: '/plans',     label: 'Planos',            icon: Package,         roles: ['admin','vendedor','tecnico'], section: 'admin' },
-  { to: '/orders',    label: 'Ordens de Serviço', icon: ClipboardList,   roles: ['admin','vendedor'], section: 'admin' },
+  // ─── 📊 PAINEL PRINCIPAL ───
+  { to: '/',          label: 'Dashboard',        icon: LayoutDashboard, roles: ['admin','vendedor','tecnico'], end: true, section: 'painel' },
   
-  // ─── SETOR TÉCNICO ───
+  // ─── 👥 GESTÃO DE PESSOAS ───
+  { to: '/users',     label: 'Usuários',          icon: Users,           roles: ['admin'], section: 'pessoas' },
+  { to: '/clients',   label: 'Clientes',          icon: UserCheck,       roles: ['admin','vendedor'], section: 'pessoas' },
+  
+  // ─── 💼 GESTÃO COMERCIAL ───
+  { to: '/plans',     label: 'Planos',            icon: Package,         roles: ['admin','vendedor','tecnico'], section: 'comercial' },
+  { to: '/sales',     label: 'Gestão de Vendas',       icon: TrendingUp,   roles: ['admin'], section: 'comercial' },
+  { to: '/history',   label: 'Serviços Executados',    icon: History,      roles: ['admin'], section: 'comercial' },
+  { to: '/solicitations', label: 'Solicitações',       icon: Radio,        roles: ['admin'], badge: 'solicitations', section: 'comercial' },
+  
+  // ─── 🛠️ OPERACIONAL / SERVIÇOS ───
+  { to: '/orders',    label: 'Ordens de Serviço', icon: ClipboardList,   roles: ['admin','vendedor'], section: 'operacional' },
+  { to: '/servico-rede',    label: 'Serviço de Rede',  icon: Network,      roles: ['admin', 'manutencao'], section: 'operacional' },
+  { to: '/cto-ocorrencias', label: 'Ocorrências CTO',  icon: AlertCircle,  roles: ['admin'], section: 'operacional' },
+  { to: '/quality-control', label: 'Controle de Qualidade', icon: CheckCircle, roles: ['admin', 'qualidade'], section: 'operacional' },
+  
+  // ─── 👨‍🔧 MÓDULO TÉCNICO ───
   { to: '/technical', label: 'Módulo Técnico',    icon: Wrench,          roles: ['admin','tecnico'], section: 'tecnico' },
-  { to: '/cto-ocorrencias', label: 'Ocorrências CTO',  icon: AlertCircle,  roles: ['admin'], section: 'tecnico' },
-  { to: '/servico-rede',    label: 'Serviço de Rede',  icon: Network,      roles: ['admin', 'manutencao'], section: 'tecnico' },
   { to: '/stock-admin',     label: 'Estoque Técnico',       icon: Package,        roles: ['admin'], section: 'tecnico' },
-  { to: '/quality-control', label: 'Controle de Qualidade', icon: CheckCircle, roles: ['admin', 'qualidade'], section: 'tecnico' },
-  { to: '/providers',  label: 'Provedor / CORE',       icon: Server,       roles: ['admin'], masterOnly: true, section: 'tecnico' },
   
-  // ─── SETOR FINANCEIRO/VENDAS ───
-  { to: '/sales',     label: 'Gestão de Vendas',       icon: TrendingUp,   roles: ['admin'], section: 'vendas' },
-  { to: '/history',   label: 'Serviços Executados',    icon: History,      roles: ['admin'], section: 'vendas' },
-  { to: '/reports',   label: 'Relatórios',          icon: FileBarChart,   roles: ['admin'], section: 'vendas' },
-  { to: '/relatorio-tecnicos', label: 'Relatório de Técnicos', icon: ClipboardCheck, roles: ['admin'], section: 'vendas' },
+  // ─── 📈 RELATÓRIOS ───
+  { to: '/reports',   label: 'Relatórios',          icon: FileBarChart,   roles: ['admin'], section: 'relatorios' },
+  { to: '/relatorio-tecnicos', label: 'Relatório de Técnicos', icon: ClipboardCheck, roles: ['admin'], section: 'relatorios' },
   
-  // ─── SETOR COMUNICAÇÃO ───
+  // ─── 🌐 INFRAESTRUTURA / SISTEMA ───
+  { to: '/providers',  label: 'Provedor / CORE',       icon: Server,       roles: ['admin'], masterOnly: true, section: 'infra' },
+  
+  // ─── 💬 COMUNICAÇÃO ───
   { to: '/chat',      label: 'Chat',                   icon: MessageCircle, roles: ['admin','tecnico','vendedor','manutencao','qualidade'], badge: true, section: 'comunicacao' },
-  { to: '/solicitations', label: 'Solicitações',       icon: Radio,        roles: ['admin'], badge: 'solicitations', section: 'comunicacao' },
+  { to: '/ai',        label: 'Assistente IA',          icon: Bot,          roles: ['admin'], section: 'comunicacao' },
   
-  // ─── SETOR SISTEMA ───
-  { to: '/ai',        label: 'Assistente IA',          icon: Bot,          roles: ['admin'], section: 'sistema' },
-  { to: '/settings',  label: 'Configurações',          icon: Settings,     roles: ['admin'], section: 'sistema' },
+  // ─── ⚙️ ADMINISTRAÇÃO ───
+  { to: '/settings',  label: 'Configurações',          icon: Settings,     roles: ['admin'], section: 'administracao' },
 ];
 
 // Permissões padrão por role
@@ -291,13 +299,17 @@ export default function Layout() {
 
   // Agrupar por setor
   const sectionLabels = {
-    admin: '📋 Administrativo',
-    tecnico: '🔧 Técnico',
-    vendas: '💰 Financeiro/Vendas',
+    painel: '📊 Painel Principal',
+    pessoas: '👥 Gestão de Pessoas',
+    comercial: '💼 Gestão Comercial',
+    operacional: '🛠️ Operacional / Serviços',
+    tecnico: '👨‍🔧 Módulo Técnico',
+    relatorios: '📈 Relatórios',
+    infra: '🌐 Infraestrutura / Sistema',
     comunicacao: '💬 Comunicação',
-    sistema: '⚙️ Sistema'
+    administracao: '⚙️ Administração'
   };
-  const sectionOrder = ['admin', 'tecnico', 'vendas', 'comunicacao', 'sistema'];
+  const sectionOrder = ['painel', 'pessoas', 'comercial', 'operacional', 'tecnico', 'relatorios', 'infra', 'comunicacao', 'administracao'];
   const grouped = sectionOrder.map(sec => ({
     section: sec,
     label: sectionLabels[sec],
