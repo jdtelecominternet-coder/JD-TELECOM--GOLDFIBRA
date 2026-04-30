@@ -22,8 +22,31 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:site_name" content="SysFlowCloudi" />
     
-    <!-- Proteção contra cópia -->
+    <!-- Proteção contra cópia - carrega antes de tudo -->
     <script src="/protection.js"></script>
+    <script>
+      // Proteção inline imediata
+      (function(){
+        'use strict';
+        var detectDevTools = function() {
+          var w = window.outerWidth - window.innerWidth > 160;
+          var h = window.outerHeight - window.innerHeight > 160;
+          if (w || h) {
+            document.documentElement.innerHTML = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Bloqueado</title><style>*{margin:0;padding:0}body{background:#0f172a;color:#fff;display:flex;justify-content:center;align-items:center;height:100vh;font-family:system-ui;text-align:center}.container{padding:40px}.lock{font-size:100px;margin-bottom:30px}h1{font-size:36px;margin-bottom:20px}p{font-size:18px;opacity:.8}</style></head><body><div class="container"><div class="lock">🔒</div><h1>ACESSO NEGADO</h1><p>DevTools detectado!</p></div></body></html>';
+            throw new Error('BLOQUEADO');
+          }
+        };
+        setInterval(detectDevTools, 100);
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I','J','C'].indexOf(e.key) !== -1)) {
+            e.preventDefault();
+            detectDevTools();
+            return false;
+          }
+        }, true);
+        document.addEventListener('contextmenu', function(e) { e.preventDefault(); }, true);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
