@@ -150,7 +150,7 @@ export default function Solicitar() {
   const [token, setToken] = useState('');
   const [tokenStatus, setTokenStatus] = useState('checking'); // checking | valid | invalid | used
   const [sellerName, setSellerName] = useState('');
-  const [form, setForm] = useState({ name:'', cpf:'', birth_date:'', whatsapp:'', email:'', cep:'', street:'', number:'', complement:'', neighborhood:'', city:'', state:'', plan_id:'', install_period:'', scheduled_date:'', observations:'' });
+  const [form, setForm] = useState({ name:'', cpf:'', birth_date:'', whatsapp:'', email:'', cep:'', street:'', number:'', complement:'', neighborhood:'', city:'', state:'', plan_id:'', install_period:'', scheduled_date:'', due_date:'', observations:'' });
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
   const [submittedForm, setSubmittedForm] = useState(null);
@@ -348,6 +348,18 @@ export default function Solicitar() {
                   </span>
                 </div>
               )}
+            </div>
+
+            <div>
+              <label style={{display:'block',fontWeight:600,marginBottom:4,fontSize:13,color:'#374151'}}>Vencimento da Fatura</label>
+              <select value={form.due_date} onChange={e=>set('due_date',e.target.value)} style={{width:'100%',padding:'10px 12px',border:'1px solid #d1d5db',borderRadius:8,fontSize:14,boxSizing:'border-box',background:'#fff',color:'#111'}}>
+                <option value="">Selecione o dia do vencimento</option>
+                <option value="05">Dia 05</option>
+                <option value="10">Dia 10</option>
+                <option value="15">Dia 15</option>
+                <option value="20">Dia 20</option>
+                <option value="25">Dia 25</option>
+              </select>
             </div>
 
             <div>
