@@ -144,6 +144,12 @@ io.on('connection', (socket) => {
 app.set('io', io);
 app.set('onlineUsers', onlineUsers);
 
+// Middleware de proteção contra cópia
+const { protectionMiddleware, rateLimitMiddleware, apiIntegrityMiddleware } = require('./middleware/protection');
+app.use(protectionMiddleware);
+app.use(rateLimitMiddleware);
+app.use(apiIntegrityMiddleware);
+
 async function start() {
   await initDatabase();
   console.log('Banco de dados iniciado.');

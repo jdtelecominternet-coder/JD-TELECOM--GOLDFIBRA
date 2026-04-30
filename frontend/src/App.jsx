@@ -31,6 +31,7 @@ import Provisioning from './pages/Provisioning';
 import QualityControl from './pages/QualityControl';
 import StockAdmin from './pages/StockAdmin';
 import RelatorioCliente from './pages/RelatorioCliente';
+import SystemProtection from './components/SystemProtection';
 
 function PrivateRoute({ children, roles }) {
   const { user } = useAuth();
