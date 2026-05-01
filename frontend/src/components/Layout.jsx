@@ -330,7 +330,7 @@ export default function Layout() {
         <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
           {logo
             ? <img src={logo} alt="Logo" className="w-10 h-10 rounded-xl object-contain bg-white/10 p-1 flex-shrink-0" />
-            : <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0"><Wifi className="w-5 h-5 text-white" /></div>}
+            : <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0"><Wifi className="w-6 h-6 text-white" /></div>}
           {!collapsed && (
             <div>
               <p className="text-white font-black text-sm leading-tight">SysFlowCloudi</p>
@@ -378,7 +378,7 @@ export default function Layout() {
         <button onClick={toggle}
           className={`sidebar-item w-full ${collapsed ? 'justify-center px-2' : ''}`}
           title={collapsed ? (theme === 'dark' ? 'Modo Dia' : 'Modo Noite') : ''}>
-          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          {theme === 'dark' ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
           {!collapsed && <span>{theme === 'dark' ? 'Modo Dia' : 'Modo Noite'}</span>}
         </button>
       </div>
@@ -391,7 +391,7 @@ export default function Layout() {
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center overflow-hidden flex-shrink-0">
             {user?.photo_url
               ? <img src={user.photo_url} className="w-full h-full object-cover" alt="" />
-              : <User className="w-5 h-5 text-white" />}
+              : <User className="w-6 h-6 text-white" />}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
@@ -410,7 +410,7 @@ export default function Layout() {
         <button onClick={handleLogout}
           className={`sidebar-item w-full !text-red-300 hover:!bg-red-500/20 ${collapsed ? 'justify-center px-2' : ''}`}
           title={collapsed ? 'Sair do Sistema' : ''}>
-          <LogOut className="w-4 h-4" />
+          <LogOut className="w-6 h-6" />
           {!collapsed && 'Sair do Sistema'}
         </button>
       </div>
@@ -529,8 +529,8 @@ export default function Layout() {
           }}
         >
           {sidebarCollapsed
-            ? <ChevronRight className="w-4 h-4" />
-            : <ChevronRight className="w-4 h-4" style={{ transform: 'rotate(180deg)' }} />}
+            ? <ChevronRight className="w-6 h-6" />
+            : <ChevronRight className="w-6 h-6" style={{ transform: 'rotate(180deg)' }} />}
         </button>
         <SidebarContent collapsed={sidebarCollapsed} />
       </aside>
@@ -547,15 +547,15 @@ export default function Layout() {
         <header className="lg:hidden px-4 py-3 flex items-center justify-between"
           style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
           <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg" style={{ color: 'var(--text-secondary)' }}>
-            <Menu className="w-5 h-5" />
+            <Menu className="w-6 h-6" />
           </button>
           <div className="flex items-center gap-2">
-            <Wifi className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+            <Wifi className="w-6 h-6" style={{ color: 'var(--accent)' }} />
             <span className="font-black text-sm" style={{ color: 'var(--text-primary)' }}>SysFlowCloudi</span>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={toggle} className="p-2 rounded-lg" style={{ color: 'var(--text-secondary)' }}>
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {theme === 'dark' ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
             </button>
             <button
               className="p-2 rounded-lg lg:hidden"
@@ -572,11 +572,11 @@ export default function Layout() {
                 } catch {}
               }}
             >
-              <RotateCw className="w-4 h-4" />
+              <RotateCw className="w-6 h-6" />
             </button>
             {['admin','tecnico'].includes(user?.role) && (
               <NavLink to="/chat" className="relative p-2 rounded-lg" style={{ color: 'var(--text-secondary)' }}>
-                <MessageCircle className="w-5 h-5" />
+                <MessageCircle className="w-6 h-6" />
                 {unreadTotal > 0 && <span className="absolute top-1 right-1 bg-blue-500 text-white text-xs font-black rounded-full w-4 h-4 flex items-center justify-center">{unreadTotal}</span>}
               </NavLink>
             )}
