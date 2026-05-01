@@ -31,6 +31,7 @@ import Provisioning from './pages/Provisioning';
 import QualityControl from './pages/QualityControl';
 import StockAdmin from './pages/StockAdmin';
 import RelatorioCliente from './pages/RelatorioCliente';
+import FinancialDashboard from './pages/FinancialDashboard';
 import SystemProtection from './components/SystemProtection';
 
 function PrivateRoute({ children, roles }) {
@@ -71,6 +72,7 @@ function AppRoutes() {
         <Route path="provisioning" element={<PrivateRoute roles={['admin','tecnico']}><Provisioning /></PrivateRoute>} />
         <Route path="quality-control" element={<PrivateRoute roles={['admin']}><QualityControl /></PrivateRoute>} />
         <Route path="stock-admin"     element={<PrivateRoute roles={['admin']}><StockAdmin /></PrivateRoute>} />
+        <Route path="financial"       element={<PrivateRoute roles={['admin']}><FinancialDashboard /></PrivateRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
