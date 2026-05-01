@@ -408,7 +408,12 @@ export default function Dashboard() {
     } catch {} finally { setLoading(false); }
   }, [user.role]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { 
+    load(); 
+    // Atualizar a cada 30 segundos para garantir dados atualizados
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
+  }, [load]);
   useSync('orders', load);
 
   async function uploadPhoto(e) {
