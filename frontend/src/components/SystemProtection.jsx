@@ -25,7 +25,8 @@ export default function SystemProtection() {
     // Adicionar classe ao body para estilos de proteção
     document.body.classList.add('sysflow-protected');
 
-    // Detectar DevTools
+    // Detectar DevTools - DESATIVADO para permitir acesso em todos os dispositivos
+    /*
     const detectDevTools = () => {
       const threshold = 160;
       const widthThreshold = window.outerWidth - window.innerWidth > threshold;
@@ -58,8 +59,10 @@ export default function SystemProtection() {
 
     // Verificar periodicamente
     const interval = setInterval(detectDevTools, 1000);
+    */
 
-    // Bloquear atalhos
+    // Bloquear atalhos - DESATIVADO
+    /*
     const handleKeyDown = (e) => {
       // F12
       if (e.key === 'F12') {
@@ -79,10 +82,11 @@ export default function SystemProtection() {
     };
 
     document.addEventListener('keydown', handleKeyDown);
+    */
 
     return () => {
-      clearInterval(interval);
-      document.removeEventListener('keydown', handleKeyDown);
+      // clearInterval(interval);
+      // document.removeEventListener('keydown', handleKeyDown);
       document.body.classList.remove('sysflow-protected');
     };
   }, []);

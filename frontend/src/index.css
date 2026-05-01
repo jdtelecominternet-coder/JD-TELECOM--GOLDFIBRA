@@ -238,6 +238,10 @@
 ::-webkit-scrollbar-thumb { background-color: var(--scrollbar); border-radius: 999px; }
 * { scrollbar-width: thin; scrollbar-color: var(--scrollbar) transparent; }
 
+/* Esconder scrollbar na sidebar mas manter funcionalidade */
+.sidebar-scroll::-webkit-scrollbar { display: none; }
+.sidebar-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* ─── Select / Textarea tema ─────────────────────────────────────────────── */
 select, select option {
   background-color: var(--bg-input) !important;

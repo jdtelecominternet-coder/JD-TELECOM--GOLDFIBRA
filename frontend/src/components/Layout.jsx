@@ -341,7 +341,7 @@ export default function Layout() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-3 overflow-y-auto">
+      <nav className="flex-1 p-3 overflow-y-auto sidebar-scroll">
         {grouped.map((group, idx) => (
           <div key={group.section} className={idx > 0 ? 'mt-4' : ''}>
             {!collapsed && (
