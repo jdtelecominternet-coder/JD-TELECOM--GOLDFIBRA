@@ -91,6 +91,13 @@ export default function Layout() {
   // Contador de alertas de rede para admin
   const [redeAdminCount, setRedeAdminCount] = useState(0);
 
+  // Função para obter saudação baseada na hora
+  const getSaudacao = () => {
+    const hora = new Date().getHours();
+    if (hora >= 1 && hora < 18) return 'Bom dia';
+    return 'Boa noite';
+  };
+
   function showToast(msg, type = 'success') {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 5000);
@@ -327,7 +334,7 @@ export default function Layout() {
           {!collapsed && (
             <div>
               <p className="text-white font-black text-sm leading-tight">SysFlowCloudi</p>
-              <p className="text-blue-300 text-xs font-semibold tracking-wider">SysFlowCloudi</p>
+              <p className="text-blue-300 text-xs font-semibold tracking-wider">{getSaudacao()}</p>
             </div>
           )}
         </div>
