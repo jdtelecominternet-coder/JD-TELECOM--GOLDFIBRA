@@ -338,7 +338,7 @@ export default function Layout() {
         {grouped.map((group, idx) => (
           <div key={group.section} className={idx > 0 ? 'mt-4' : ''}>
             {!collapsed && (
-              <div className="px-2 mb-3 text-xs font-bold uppercase tracking-wider opacity-70" style={{ color: 'var(--text-sidebar)' }}>
+              <div className="px-2 mb-3 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--sidebar-text)', opacity: 0.9 }}>
                 {group.label}
               </div>
             )}
