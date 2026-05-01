@@ -347,7 +347,7 @@ export default function Layout() {
                 <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''} ${collapsed ? 'justify-center px-2' : ''}`}
                   title={collapsed ? item.label : ''}>
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  <item.icon className="w-6 h-6 flex-shrink-0" />
                   {!collapsed && <span className="flex-1">{item.label}</span>}
                   {!collapsed && (item.badge === true && unreadTotal > 0
                     ? <span className="bg-red-500 text-white text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center">{unreadTotal > 99 ? '99+' : unreadTotal}</span>
