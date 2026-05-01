@@ -338,7 +338,7 @@ export default function Layout() {
         {grouped.map((group, idx) => (
           <div key={group.section} className={idx > 0 ? 'mt-4' : ''}>
             {!collapsed && (
-              <div className="px-2 mb-2 text-[10px] font-bold uppercase tracking-wider opacity-50" style={{ color: 'var(--text-sidebar)' }}>
+              <div className="px-2 mb-3 text-xs font-bold uppercase tracking-wider opacity-70" style={{ color: 'var(--text-sidebar)' }}>
                 {group.label}
               </div>
             )}
@@ -347,7 +347,7 @@ export default function Layout() {
                 <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''} ${collapsed ? 'justify-center px-2' : ''}`}
                   title={collapsed ? item.label : ''}>
-                  <item.icon className="w-4 h-4 flex-shrink-0" />
+                  <item.icon className="w-5 h-5 flex-shrink-0" />
                   {!collapsed && <span className="flex-1">{item.label}</span>}
                   {!collapsed && (item.badge === true && unreadTotal > 0
                     ? <span className="bg-red-500 text-white text-xs font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center">{unreadTotal > 99 ? '99+' : unreadTotal}</span>
@@ -371,7 +371,7 @@ export default function Layout() {
         <button onClick={toggle}
           className={`sidebar-item w-full ${collapsed ? 'justify-center px-2' : ''}`}
           title={collapsed ? (theme === 'dark' ? 'Modo Dia' : 'Modo Noite') : ''}>
-          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           {!collapsed && <span>{theme === 'dark' ? 'Modo Dia' : 'Modo Noite'}</span>}
         </button>
       </div>
@@ -384,7 +384,7 @@ export default function Layout() {
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center overflow-hidden flex-shrink-0">
             {user?.photo_url
               ? <img src={user.photo_url} className="w-full h-full object-cover" alt="" />
-              : <User className="w-4 h-4 text-white" />}
+              : <User className="w-5 h-5 text-white" />}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
