@@ -382,7 +382,7 @@ export default function Users() {
                           </div>
                         </div>
                       </td>
-                      <td className="table-cell font-mono font-bold" style={{ color: 'var(--accent)' }}>{u.jd_id}</td>
+                      <td className="table-cell font-mono font-bold" style={{ color: 'var(--accent)' }}>ID{u.jd_id?.replace(/^JD/i, '')}</td>
                       <td className="table-cell">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border"
                           style={{ color: 'var(--accent)', borderColor: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 15%, transparent)' }}>

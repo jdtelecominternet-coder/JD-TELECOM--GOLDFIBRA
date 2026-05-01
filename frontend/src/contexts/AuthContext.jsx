@@ -35,6 +35,7 @@ export function AuthProvider({ children }) {
   }
 
   // Atualiza permissões do servidor automaticamente ao carregar o app
+  // E valida se o usuário ainda existe
   useEffect(() => {
     if (!user) return;
     api.get('/users/me').then(r => {
@@ -43,7 +44,13 @@ export function AuthProvider({ children }) {
         localStorage.setItem('jd_user', JSON.stringify(updated));
         setUser(updated);
       }
-    }).catch(() => {});
+    }).catch(err => {
+      // Se usuário não existe mais (404) ou não autorizado (401), faz logout
+      if (err.response?.status === 404 || err.response?.status === 401) {
+        logout();
+        window.location.href = '/login';
+      }
+    });
   }, []);
 
   function loginWithToken(token, userData) {
