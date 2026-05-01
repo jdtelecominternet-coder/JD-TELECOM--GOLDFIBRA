@@ -131,8 +131,7 @@ export default function Login() {
             <Wifi className="w-10 h-10" style={{ color: 'var(--accent)' }} />
           </div>
           <h1 className="text-3xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>SysFlowCloudi</h1>
-          <p className="font-semibold tracking-widest text-sm mt-1" style={{ color: 'var(--accent)' }}>SysFlowCloudi</p>
-          <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>Sistema de Gestão Empresarial</p>
+          <p className="text-sm mt-3 font-medium" style={{ color: 'var(--text-secondary)' }}>Sistema de Gestão Empresarial</p>
         </div>
 
         <div className="card p-8 shadow-2xl">
@@ -175,15 +174,15 @@ export default function Login() {
               <label className="label">ID de Acesso</label>
               <div className="flex">
                 <span className="flex items-center px-4 rounded-l-lg text-sm font-black border-y border-l h-[42px]"
-                  style={{ background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' }}>JD</span>
+                  style={{ background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' }}>ID</span>
                 <input type="text" value={nums}
                   onChange={e => setNums(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="000000" maxLength={6}
                   className="input rounded-l-none border-l-0 font-mono tracking-widest h-[42px]"
                   autoComplete="username" />
               </div>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                ID: <span className="font-mono font-bold" style={{ color: 'var(--accent)' }}>{nums ? 'JD' + nums : 'JD______'}</span>
+              <p className="text-xs mt-1 font-medium" style={{ color: 'var(--text-secondary)' }}>
+                ID: <span className="font-mono font-bold" style={{ color: 'var(--accent)' }}>{nums ? 'ID' + nums : 'ID______'}</span>
               </p>
             </div>
 
@@ -209,8 +208,8 @@ export default function Login() {
           </form>
 
           <div className="mt-6 pt-4 text-center" style={{ borderTop: '1px solid var(--border)' }}>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Acesso restrito a colaboradores autorizados</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>SysFlowCloudi © {new Date().getFullYear()}</p>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Acesso restrito a colaboradores autorizados</p>
+            <p className="text-xs mt-1 font-medium" style={{ color: 'var(--text-muted)' }}>SysFlowCloudi © {new Date().getFullYear()}</p>
           </div>
         </div>
       </div>
