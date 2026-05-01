@@ -241,4 +241,19 @@ router.get('/:id/online', authMiddleware, (req, res) => {
   });
 });
 
+// POST /api/users/logout - Marca usuário como offline explicitamente
+router.post('/logout', (req, res) => {
+  const { userId } = req.body;
+  const io = req.app.get('io');
+  const onlineUsers = req.app.get('onlineUsers');
+  
+  if (userId && onlineUsers.has(userId)) {
+    onlineUsers.delete(userId);
+    io.emit('users:online', Array.from(onlineUsers.entries()).map(([id, u]) => ({ id, ...u })));
+    io.emit('tech:offline', { user_id: userId });
+  }
+  
+  res.json({ success: true, message: 'Logout registrado' });
+});
+
 module.exports = router;

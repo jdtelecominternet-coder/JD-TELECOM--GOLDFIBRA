@@ -22,7 +22,15 @@ export function AuthProvider({ children }) {
     }
   }
 
-  function logout() {
+  async function logout() {
+    // Notifica backend para marcar como offline
+    if (user?.id) {
+      try {
+        await api.post('/users/logout', { userId: user.id });
+      } catch (err) {
+        console.log('Erro ao notificar logout:', err.message);
+      }
+    }
     localStorage.removeItem('jd_token');
     localStorage.removeItem('jd_user');
     setUser(null);

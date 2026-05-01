@@ -105,19 +105,25 @@ io.on('connection', (socket) => {
     io.to(`user:${receiver_id}`).emit('chat:typing', { sender_id: user.id, typing });
   });
 
-  socket.on('ping', () => { /* keepalive */ });
+  socket.on('ping', () => { 
+    // Atualiza o timestamp do último ping
+    const entry = onlineUsers.get(user.id);
+    if (entry) {
+      entry.lastPing = Date.now();
+      onlineUsers.set(user.id, entry);
+    }
+  });
 
   socket.on('disconnect', () => {
-    // Aguarda 5 segundos antes de marcar offline
-    setTimeout(() => {
-      const current = onlineUsers.get(user.id);
-      if (current && current.socketId === socket.id) {
-        onlineUsers.delete(user.id);
-        io.emit('users:online', Array.from(onlineUsers.entries()).map(([id, u]) => ({ id, ...u })));
-        // Notifica admins que técnico foi offline (remove localização)
-        io.emit('tech:offline', { user_id: user.id });
-      }
-    }, 5000);
+    // NÃO marca como offline imediatamente - aguarda logout explícito
+    // O usuário continua online mesmo se o socket desconectar (tela desligada)
+    // Apenas atualiza o socketId para null
+    const entry = onlineUsers.get(user.id);
+    if (entry && entry.socketId === socket.id) {
+      entry.socketId = null;
+      entry.disconnectedAt = Date.now();
+      onlineUsers.set(user.id, entry);
+    }
   });
 
   // Técnico transmite localização em tempo real
