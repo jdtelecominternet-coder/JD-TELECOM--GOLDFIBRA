@@ -181,9 +181,6 @@ export default function Login() {
                   className="input rounded-l-none border-l-0 font-mono tracking-widest h-[42px]"
                   autoComplete="username" />
               </div>
-              <p className="text-xs mt-1 font-medium" style={{ color: 'var(--text-secondary)' }}>
-                ID: <span className="font-mono font-bold" style={{ color: 'var(--accent)' }}>{nums ? 'ID' + nums : 'ID______'}</span>
-              </p>
             </div>
 
             <div>
