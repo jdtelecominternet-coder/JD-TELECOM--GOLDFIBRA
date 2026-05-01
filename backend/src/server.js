@@ -1,196 +1,179 @@
 const express = require('express');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
-const jwt = require('jsonwebtoken');
-const { initDatabase, getDb } = require('./database');
-const { JWT_SECRET } = require('./middleware/auth');
+const http = require('http');
+const { Server } = require('socket.io');
 
 const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
-});
-
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
 const PORT = process.env.PORT || 3001;
 
-// Ensure upload directories exist
-const fs = require('fs');
-['uploads/logos', 'uploads/photos', 'uploads/profiles', 'uploads/chat'].forEach(dir => {
-  const full = path.join(__dirname, '..', dir);
-  if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true });
-});
-
+// Middleware
 app.use(cors());
-app.use(express.json({ limit: '20mb' }));
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Track online users: userId -> { socketId, jd_id, name, role }
-const onlineUsers = new Map();
+// Banco de dados SQLite
+const Database = require('better-sqlite3');
+const db = new Database(path.join(__dirname, '../database.sqlite'));
 
-// Socket.io authentication middleware
-io.use((socket, next) => {
-  const token = socket.handshake.auth?.token;
-  if (!token) return next(new Error('Token obrigatório'));
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    socket.user = decoded;
-    next();
-  } catch {
-    next(new Error('Token inválido'));
-  }
-});
+// Criar tabelas se nao existirem
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    jd_id TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    role TEXT DEFAULT 'tecnico',
+    active INTEGER DEFAULT 1,
+    photo_url TEXT,
+    permissions TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  
+  CREATE TABLE IF NOT EXISTS passwords (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL UNIQUE,
+    hash TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+  
+  CREATE TABLE IF NOT EXISTS clients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    cpf TEXT,
+    email TEXT,
+    phone TEXT,
+    address TEXT,
+    plan_id INTEGER,
+    active INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  
+  CREATE TABLE IF NOT EXISTS plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    price REAL NOT NULL,
+    speed TEXT,
+    active INTEGER DEFAULT 1
+  );
+  
+  CREATE TABLE IF NOT EXISTS service_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER,
+    technician_id INTEGER,
+    status TEXT DEFAULT 'pendente',
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+`);
 
-io.on('connection', (socket) => {
-  const user = socket.user;
-
-  // Admin, tecnico e vendedor podem usar o chat
-
-  // Mark user online
-  onlineUsers.set(user.id, { socketId: socket.id, jd_id: user.jd_id, name: user.name, role: user.role });
-  io.emit('users:online', Array.from(onlineUsers.entries()).map(([id, u]) => ({ id, ...u })));
-
-  // Join personal room
-  socket.join(`user:${user.id}`);
-
-  // Send chat history on connect
-  socket.on('chat:history', ({ with_user_id }) => {
-    const db = getDb();
-    const msgs = db.prepare(`
-      SELECT m.*, u.name as sender_name, u.jd_id as sender_jd_id
-      FROM chat_messages m JOIN users u ON u.id = m.sender_id
-      WHERE (m.sender_id=? AND m.receiver_id=?) OR (m.sender_id=? AND m.receiver_id=?)
-      ORDER BY m.created_at ASC LIMIT 100
-    `).all(user.id, with_user_id, with_user_id, user.id);
-    socket.emit('chat:history', msgs);
-
-    // Mark as read
-    db.prepare('UPDATE chat_messages SET read_at=datetime("now") WHERE receiver_id=? AND sender_id=? AND read_at IS NULL')
-      .run(user.id, with_user_id);
-    // Notify sender that messages were read
-    io.to('user:' + with_user_id).emit('chat:read', { by_user_id: user.id });
-  });
-
-  // Send message
-  socket.on('chat:send', ({ receiver_id, message }) => {
-    if (!message?.trim()) return;
-
-    const db = getDb();
-    const receiver = db.prepare('SELECT id, role FROM users WHERE id=? AND active=1').get(receiver_id);
-    if (!receiver) return;
-
-    const info = db.prepare(`INSERT INTO chat_messages (sender_id, receiver_id, message) VALUES (?,?,?)`)
-      .run(user.id, receiver_id, message.trim());
-
-    const msg = {
-      id: info.lastInsertRowid,
-      sender_id: user.id,
-      receiver_id,
-      message: message.trim(),
-      sender_name: user.name,
-      sender_jd_id: user.jd_id,
-      created_at: new Date().toISOString(),
-      read_at: null
-    };
-
-    // Emit to receiver and sender
-    io.to(`user:${receiver_id}`).emit('chat:message', msg);
-    socket.emit('chat:message', msg);
-  });
-
-  // Typing indicator
-  socket.on('chat:typing', ({ receiver_id, typing }) => {
-    io.to(`user:${receiver_id}`).emit('chat:typing', { sender_id: user.id, typing });
-  });
-
-  socket.on('ping', () => { 
-    // Atualiza o timestamp do último ping
-    const entry = onlineUsers.get(user.id);
-    if (entry) {
-      entry.lastPing = Date.now();
-      onlineUsers.set(user.id, entry);
-    }
-  });
-
-  socket.on('disconnect', () => {
-    // NÃO marca como offline imediatamente - aguarda logout explícito
-    // O usuário continua online mesmo se o socket desconectar (tela desligada)
-    // Apenas atualiza o socketId para null
-    const entry = onlineUsers.get(user.id);
-    if (entry && entry.socketId === socket.id) {
-      entry.socketId = null;
-      entry.disconnectedAt = Date.now();
-      onlineUsers.set(user.id, entry);
-    }
-  });
-
-  // Técnico transmite localização em tempo real
-  socket.on('tech:location', ({ latitude, longitude, geo_address }) => {
-    if (!['tecnico', 'manutencao'].includes(user.role)) return;
-    // Atualiza o mapa em memória e broadcast para todos admins
-    const entry = onlineUsers.get(user.id);
-    if (entry) {
-      onlineUsers.set(user.id, { ...entry, latitude, longitude, geo_address });
-    }
-    io.emit('tech:location_update', {
-      user_id: user.id,
-      jd_id: user.jd_id,
-      name: user.name,
-      latitude,
-      longitude,
-      geo_address,
-      ts: Date.now(),
-    });
-  });
-});
-
-// Expose io for routes
-app.set('io', io);
-app.set('onlineUsers', onlineUsers);
-
-// Middleware de proteção contra cópia
-const { protectionMiddleware, rateLimitMiddleware, apiIntegrityMiddleware } = require('./middleware/protection');
-app.use(protectionMiddleware);
-app.use(rateLimitMiddleware);
-app.use(apiIntegrityMiddleware);
-
-async function start() {
-  await initDatabase();
-  console.log('Banco de dados iniciado.');
-
-  app.use('/api/auth', require('./routes/auth'));
-  app.use('/api/auth/webauthn', require('./routes/webauthn'));
-  app.use('/api/users', require('./routes/users'));
-  app.use('/api/clients', require('./routes/clients'));
-  app.use('/api/solicitations', require('./routes/solicitations'));
-  app.use('/api/plans', require('./routes/plans'));
-  app.use('/api/orders', require('./routes/orders'));
-  app.use('/api/settings', require('./routes/settings'));
-  app.use('/api/reports', require('./routes/reports'));
-  app.use('/api/chat', require('./routes/chat'));
-  app.use('/api/ai', require('./routes/ai'));
-  app.use('/api/cto', require('./routes/cto'));
-  app.use('/api/maintenance', require('./routes/maintenance'));
-  app.use('/api/stock',       require('./routes/stock'));
-  app.use('/api/deploy',      require('./routes/deploy'));
-  app.use('/api/tipos-os',    require('./routes/tiposOs'));
-  app.use('/api/providers', require('./routes/providers'));
-  app.use('/api/provisioning', require('./routes/provisioning'));
-  app.use('/api/quality-control', require('./routes/qualityControl'));
-  app.use('/api/face-auth', require('./routes/faceAuth'));
-  app.use('/api/financial', require('./routes/financial'));
-
-  app.get('/api/health', (req, res) => res.json({ status: 'OK', system: 'SysFlowCloudi' }));
-
-  httpServer.listen(PORT, () => {
-    console.log(`\n========================================`);
-    console.log(`  SysFlowCloudi - Backend`);
-    console.log(`  Server: http://localhost:${PORT}`);
-    console.log(`  Login: JD000001 / admin123`);
-    console.log(`========================================\n`);
-  });
+// Criar usuario admin se nao existir
+const bcrypt = require('bcryptjs');
+const adminExists = db.prepare('SELECT id FROM users WHERE jd_id = ?').get('ID000001');
+if (!adminExists) {
+  const result = db.prepare('INSERT INTO users (jd_id, name, email, role, active) VALUES (?, ?, ?, ?, ?)')
+    .run('ID000001', 'Administrador', 'admin@sysflowcloudi.com', 'admin', 1);
+  const hash = bcrypt.hashSync('admin123', 10);
+  db.prepare('INSERT INTO passwords (user_id, hash) VALUES (?, ?)').run(result.lastInsertRowid, hash);
+  console.log('Usuario admin criado: ID000001 / admin123');
 }
 
-start().catch(err => { console.error('Erro ao iniciar:', err); process.exit(1); });
+// JWT simples
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'sysflow-secret-key';
+
+// Auth middleware
+const authMiddleware = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Token nao fornecido' });
+  
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Token invalido' });
+  }
+};
+
+// Rotas
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const { jd_id, password } = req.body;
+  
+  const user = db.prepare('SELECT u.*, p.hash FROM users u JOIN passwords p ON u.id = p.user_id WHERE u.jd_id = ?').get(jd_id);
+  
+  if (!user || !bcrypt.compareSync(password, user.hash)) {
+    return res.status(401).json({ error: 'Credenciais invalidas' });
+  }
+  
+  const token = jwt.sign({ userId: user.id, jd_id: user.jd_id, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+  
+  res.json({
+    token,
+    user: {
+      id: user.id,
+      jd_id: user.jd_id,
+      name: user.name,
+      role: user.role,
+      email: user.email,
+      photo_url: user.photo_url
+    }
+  });
+});
+
+app.get('/api/users/me', authMiddleware, (req, res) => {
+  const user = db.prepare('SELECT id, jd_id, name, email, role, photo_url, permissions FROM users WHERE id = ?').get(req.user.userId);
+  res.json(user);
+});
+
+app.get('/api/users', authMiddleware, (req, res) => {
+  const users = db.prepare('SELECT id, jd_id, name, email, role, active, photo_url FROM users').all();
+  res.json(users);
+});
+
+app.get('/api/clients', authMiddleware, (req, res) => {
+  const clients = db.prepare('SELECT * FROM clients').all();
+  res.json(clients);
+});
+
+app.get('/api/plans', authMiddleware, (req, res) => {
+  const plans = db.prepare('SELECT * FROM plans').all();
+  res.json(plans);
+});
+
+app.get('/api/service-orders', authMiddleware, (req, res) => {
+  const orders = db.prepare('SELECT * FROM service_orders').all();
+  res.json(orders);
+});
+
+// Socket.io
+const onlineUsers = new Map();
+
+io.on('connection', (socket) => {
+  console.log('Socket conectado:', socket.id);
+  
+  socket.on('join', (userId) => {
+    onlineUsers.set(userId, { socketId: socket.id, lastSeen: Date.now() });
+    io.emit('users:online', Array.from(onlineUsers.keys()));
+  });
+  
+  socket.on('disconnect', () => {
+    for (const [userId, data] of onlineUsers.entries()) {
+      if (data.socketId === socket.id) {
+        onlineUsers.delete(userId);
+        break;
+      }
+    }
+    io.emit('users:online', Array.from(onlineUsers.keys()));
+  });
+});
+
+// Iniciar servidor
+server.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});
