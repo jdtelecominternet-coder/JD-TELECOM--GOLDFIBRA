@@ -100,20 +100,34 @@ app.get('/api/settings', (req, res) => {
   res.json(settings || {});
 });
 
-// Dashboard stats
+// Dashboard stats - formato que o frontend espera
 app.get('/api/dashboard/stats', (req, res) => {
   if (!db) return res.status(500).json({ error: 'Banco não inicializado' });
   
-  const clients = db.prepare('SELECT COUNT(*) as c FROM clients').get();
+  const clientsTotal = db.prepare('SELECT COUNT(*) as c FROM clients').get();
+  const clientsActive = db.prepare('SELECT COUNT(*) as c FROM clients WHERE status="ativo"').get();
   const plans = db.prepare('SELECT COUNT(*) as c FROM plans WHERE active=1').get();
   const users = db.prepare('SELECT COUNT(*) as c FROM users WHERE active=1').get();
-  const orders = db.prepare('SELECT COUNT(*) as c FROM service_orders').get();
+  const ordersTotal = db.prepare('SELECT COUNT(*) as c FROM service_orders').get();
+  const ordersPending = db.prepare('SELECT COUNT(*) as c FROM service_orders WHERE status="pendente"').get();
+  const ordersCompleted = db.prepare('SELECT COUNT(*) as c FROM service_orders WHERE status="concluida"').get();
   
   res.json({
-    totalClients: clients?.c || 0,
-    totalPlans: plans?.c || 0,
-    totalUsers: users?.c || 0,
-    totalOrders: orders?.c || 0
+    clients: {
+      total: clientsTotal?.c || 0,
+      active: clientsActive?.c || 0
+    },
+    orders: {
+      total: ordersTotal?.c || 0,
+      pending: ordersPending?.c || 0,
+      completed: ordersCompleted?.c || 0
+    },
+    plans: {
+      total: plans?.c || 0
+    },
+    users: {
+      total: users?.c || 0
+    }
   });
 });
 
