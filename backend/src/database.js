@@ -419,6 +419,18 @@ async function initDatabase() {
   // migration: adicionar correction_status se não existir
   try { _db.prepare("ALTER TABLE quality_control ADD COLUMN correction_status TEXT DEFAULT NULL").run(); } catch(_) {}
 
+  // ── Tabela de biometria facial ────────────────────────────────────────────
+  _db.prepare(`CREATE TABLE IF NOT EXISTS face_biometrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL UNIQUE,
+    face_data TEXT NOT NULL,
+    face_descriptor TEXT NOT NULL,
+    liveness_data TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`).run();
+
   // ── Seed default admin ───────────────────────────────────────────────────
   const a = _db.prepare("SELECT COUNT(*) as c FROM users WHERE role='admin'").get();
   if (!a || a.c === 0) {

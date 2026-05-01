@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import toast from 'react-hot-toast';
-import { Wifi, Eye, EyeOff, LogIn, Sun, Moon, Fingerprint } from 'lucide-react';
+import { Wifi, Eye, EyeOff, LogIn, Sun, Moon, Fingerprint, ScanFace } from 'lucide-react';
+import FaceRecognition from '../components/FaceRecognition';
 import api from '../services/api';
 
 // ---------- helpers WebAuthn ----------
@@ -35,6 +36,7 @@ export default function Login() {
   const [hasBio, setHasBio] = useState(false);    // dispositivo suporta
   const [bioSaved, setBioSaved] = useState(false); // usuário já registrou
   const [showPass, setShowPass] = useState(true);  // mostrar form senha
+  const [showFaceLogin, setShowFaceLogin] = useState(false); // mostrar login facial
   const mobile = isMobile();
 
   useEffect(() => {
@@ -168,7 +170,59 @@ export default function Login() {
             </div>
           )}
 
+          {/* BOTÃO LOGIN FACIAL */}
+          {!showFaceLogin && (
+            <div style={{ marginBottom: 16 }}>
+              <button
+                onClick={() => setShowFaceLogin(true)}
+                style={{
+                  width: '100%', padding: '14px', borderRadius: 12,
+                  background: 'linear-gradient(135deg, #059669, #10b981)',
+                  border: '1.5px solid #34d399', color: '#fff',
+                  fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                }}
+              >
+                <ScanFace className="w-5 h-5" />
+                Entrar com Reconhecimento Facial
+              </button>
+            </div>
+          )}
+
+          {/* INTERFACE DE LOGIN FACIAL */}
+          {showFaceLogin && (
+            <div style={{ marginBottom: 20 }}>
+              <FaceRecognition
+                mode="verify"
+                onSuccess={(data) => {
+                  loginWithToken(data.token, data.user);
+                  toast.success(`Bem-vindo, ${data.user.name}!`);
+                  nav('/', { replace: true });
+                }}
+              />
+              <button
+                onClick={() => setShowFaceLogin(false)}
+                style={{
+                  width: '100%', marginTop: 12, padding: '10px',
+                  background: 'transparent', border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)', borderRadius: 8,
+                  fontSize: 13, cursor: 'pointer'
+                }}
+              >
+                Voltar para login com senha
+              </button>
+            </div>
+          )}
+
+          {/* DIVISOR */}
+          {!showFaceLogin && (
+            <div style={{ textAlign: 'center', margin: '16px 0', color: 'var(--text-muted)', fontSize: 12 }}>
+              — ou —
+            </div>
+          )}
+
           {/* FORM SENHA */}
+          {!showFaceLogin && (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="label">ID de Acesso</label>
@@ -203,6 +257,7 @@ export default function Login() {
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
+          )}
 
           <div className="mt-6 pt-4 text-center" style={{ borderTop: '1px solid var(--border)' }}>
             <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Acesso restrito a colaboradores autorizados</p>
