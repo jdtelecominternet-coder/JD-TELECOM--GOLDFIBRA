@@ -281,8 +281,10 @@ export default function FinancialDashboard() {
                 <div>
                   <p className="font-medium" style={{ color: 'var(--text-primary)' }}>
                     {suggestion.message}
-                  </p>                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {suggestion.type === 'improvement' >                      ? 'Oportunidade de melhoria'
+                  </p>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {suggestion.type === 'improvement'
+                      ? 'Oportunidade de melhoria'
                       : suggestion.type === 'collection'
                       ? 'Ação de cobrança recomendada'
                       : 'Ação urgente necessária'}
