@@ -182,4 +182,63 @@ router.delete('/:id/reset-os', authMiddleware, adminOnly, (req, res) => {
   res.json({ message: `${n} OS do técnico ${user.name} apagadas com sucesso` });
 });
 
+// Store online status in memory (will be lost on restart, but that's OK for heartbeat)
+const onlineUsers = new Map();
+const HEARTBEAT_TIMEOUT = 60000; // 60 seconds - user considered offline after 1 minute
+
+// POST /api/users/heartbeat - receive heartbeat from users
+router.post('/heartbeat', (req, res) => {
+  const { userId, timestamp, deviceInfo } = req.body;
+  
+  if (!userId) {
+    return res.status(400).json({ error: 'userId required' });
+  }
+
+  // Update user's last seen time
+  onlineUsers.set(userId, {
+    lastSeen: timestamp || Date.now(),
+    deviceInfo: deviceInfo || {},
+    isOnline: true
+  });
+
+  res.json({ success: true, serverTime: Date.now() });
+});
+
+// GET /api/users/online-status - get online status of users
+router.get('/online-status', authMiddleware, (req, res) => {
+  const now = Date.now();
+  const statuses = {};
+
+  for (const [userId, data] of onlineUsers.entries()) {
+    const timeSinceLastSeen = now - data.lastSeen;
+    // Consider online if heartbeat received in last 60 seconds
+    statuses[userId] = {
+      isOnline: timeSinceLastSeen < HEARTBEAT_TIMEOUT,
+      lastSeen: data.lastSeen,
+      secondsAgo: Math.floor(timeSinceLastSeen / 1000)
+    };
+  }
+
+  res.json(statuses);
+});
+
+// GET /api/users/:id/online - check if specific user is online
+router.get('/:id/online', authMiddleware, (req, res) => {
+  const userId = req.params.id;
+  const data = onlineUsers.get(userId);
+  
+  if (!data) {
+    return res.json({ isOnline: false, lastSeen: null });
+  }
+
+  const timeSinceLastSeen = Date.now() - data.lastSeen;
+  const isOnline = timeSinceLastSeen < HEARTBEAT_TIMEOUT;
+
+  res.json({
+    isOnline,
+    lastSeen: data.lastSeen,
+    secondsAgo: Math.floor(timeSinceLastSeen / 1000)
+  });
+});
+
 module.exports = router;

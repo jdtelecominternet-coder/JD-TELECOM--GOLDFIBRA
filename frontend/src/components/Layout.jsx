@@ -4,6 +4,7 @@ import { Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useChat } from '../contexts/ChatContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useOnlineHeartbeat } from '../hooks/useOnlineHeartbeat';
 import api from '../services/api';
 import {
   LayoutDashboard, Users, UserCheck, Package, ClipboardList,
@@ -90,6 +91,9 @@ export default function Layout() {
   const [redeAlert, setRedeAlert] = useState(null);
   // Contador de alertas de rede para admin
   const [redeAdminCount, setRedeAdminCount] = useState(0);
+
+  // Ativar heartbeat para manter usuário online mesmo com tela desligada
+  useOnlineHeartbeat(user?.id, !!user);
 
   // Função para obter saudação baseada na hora
   const getSaudacao = () => {
