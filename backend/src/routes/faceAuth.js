@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../database');
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('../middlewares/auth');
+const { JWT_SECRET } = require('../middleware/auth');
 
 // ── Registro de biometria facial ────────────────────────────────────────────
 router.post('/register', async (req, res) => {
