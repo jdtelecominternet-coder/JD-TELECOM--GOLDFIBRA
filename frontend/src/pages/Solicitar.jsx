@@ -150,7 +150,7 @@ export default function Solicitar() {
   const [token, setToken] = useState('');
   const [tokenStatus, setTokenStatus] = useState('checking'); // checking | valid | invalid | used
   const [sellerName, setSellerName] = useState('');
-  const [form, setForm] = useState({ name:'', cpf:'', birth_date:'', whatsapp:'', email:'', cep:'', street:'', number:'', complement:'', neighborhood:'', city:'', state:'', plan_id:'', install_period:'', scheduled_date:'', due_date:'', observations:'' });
+  const [form, setForm] = useState({ name:'', cpf:'', birth_date:'', whatsapp:'', email:'', cep:'', street:'', number:'', complement:'', neighborhood:'', city:'', state:'', plan_id:'', install_period:'', scheduled_date:'', due_date:'', doc_selfie:null, comprovante_endereco:null, observations:'' });
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
   const [submittedForm, setSubmittedForm] = useState(null);
