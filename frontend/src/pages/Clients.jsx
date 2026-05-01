@@ -752,6 +752,155 @@ export default function Clients() {
                 </div>
               )}
 
+              {/* Fotos - Selfie, Documento e Comprovante */}
+              <div className="sm:col-span-2">
+                <label className="label flex items-center gap-2">
+                  <span>📷</span> Fotos do Cliente
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+                  {/* Selfie */}
+                  <div>
+                    <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-secondary)' }}>Selfie com Documento</label>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={e => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setForm(p => ({ ...p, selfie_photo: reader.result }));
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                        id="selfie-upload"
+                      />
+                      <label
+                        htmlFor="selfie-upload"
+                        className="flex flex-col items-center justify-center w-full h-32 rounded-xl border-2 border-dashed cursor-pointer transition-all"
+                        style={{
+                          borderColor: form.selfie_photo ? 'var(--success)' : 'var(--border)',
+                          background: form.selfie_photo ? 'rgba(34,197,94,0.1)' : 'var(--bg-input)'
+                        }}
+                      >
+                        {form.selfie_photo ? (
+                          <img src={form.selfie_photo} alt="Selfie" className="w-full h-full object-cover rounded-xl" />
+                        ) : (
+                          <>
+                            <span className="text-2xl mb-1">🤳</span>
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Clique para upload</span>
+                          </>
+                        )}
+                      </label>
+                      {form.selfie_photo && (
+                        <button
+                          type="button"
+                          onClick={() => setForm(p => ({ ...p, selfie_photo: null }))}
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Documento */}
+                  <div>
+                    <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-secondary)' }}>Foto do Documento</label>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={e => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setForm(p => ({ ...p, doc_photo: reader.result }));
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                        id="doc-upload"
+                      />
+                      <label
+                        htmlFor="doc-upload"
+                        className="flex flex-col items-center justify-center w-full h-32 rounded-xl border-2 border-dashed cursor-pointer transition-all"
+                        style={{
+                          borderColor: form.doc_photo ? 'var(--success)' : 'var(--border)',
+                          background: form.doc_photo ? 'rgba(34,197,94,0.1)' : 'var(--bg-input)'
+                        }}
+                      >
+                        {form.doc_photo ? (
+                          <img src={form.doc_photo} alt="Documento" className="w-full h-full object-cover rounded-xl" />
+                        ) : (
+                          <>
+                            <span className="text-2xl mb-1">🪪</span>
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Clique para upload</span>
+                          </>
+                        )}
+                      </label>
+                      {form.doc_photo && (
+                        <button
+                          type="button"
+                          onClick={() => setForm(p => ({ ...p, doc_photo: null }))}
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Comprovante de Endereço */}
+                  <div>
+                    <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-secondary)' }}>Comprovante de Endereço</label>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={e => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setForm(p => ({ ...p, address_proof: reader.result }));
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                        id="address-upload"
+                      />
+                      <label
+                        htmlFor="address-upload"
+                        className="flex flex-col items-center justify-center w-full h-32 rounded-xl border-2 border-dashed cursor-pointer transition-all"
+                        style={{
+                          borderColor: form.address_proof ? 'var(--success)' : 'var(--border)',
+                          background: form.address_proof ? 'rgba(34,197,94,0.1)' : 'var(--bg-input)'
+                        }}
+                      >
+                        {form.address_proof ? (
+                          <img src={form.address_proof} alt="Comprovante" className="w-full h-full object-cover rounded-xl" />
+                        ) : (
+                          <>
+                            <span className="text-2xl mb-1">🏠</span>
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Clique para upload</span>
+                          </>
+                        )}
+                      </label>
+                      {form.address_proof && (
+                        <button
+                          type="button"
+                          onClick={() => setForm(p => ({ ...p, address_proof: null }))}
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Botões WhatsApp + PDF */}
               {form.whatsapp && (
                 <div className="sm:col-span-2">
