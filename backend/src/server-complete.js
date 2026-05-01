@@ -129,6 +129,39 @@ app.get('/api/orders', (req, res) => {
   res.json(orders);
 });
 
+// Rotas adicionais para o frontend
+app.get('/api/users/heartbeat', (req, res) => {
+  res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+app.get('/api/settings/dashboard', (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Banco não inicializado' });
+  const settings = db.prepare('SELECT * FROM settings WHERE id=1').get();
+  res.json(settings || { company_name: 'SysFlowCloudi' });
+});
+
+app.get('/api/settings/role-permissions', (req, res) => {
+  res.json({
+    admin: ['*'],
+    vendedor: ['clients', 'sales'],
+    tecnico: ['orders', 'stock'],
+    tecnico_rede: ['network', 'maintenance']
+  });
+});
+
+app.get('/api/solicitations', (req, res) => {
+  if (!db) return res.status(500).json({ error: 'Banco não inicializado' });
+  const solicitations = db.prepare(`SELECT s.*, p.name as plan_name 
+    FROM solicitations s LEFT JOIN plans p ON p.id=s.plan_id 
+    ORDER BY s.created_at DESC`).all();
+  res.json(solicitations);
+});
+
+// Socket.io placeholder
+app.get('/socket.io/', (req, res) => {
+  res.json({ message: 'Socket.io not implemented in simple server' });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
