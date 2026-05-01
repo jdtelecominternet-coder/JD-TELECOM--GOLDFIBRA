@@ -431,6 +431,61 @@ async function initDatabase() {
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`).run();
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // TABELAS FINANCEIRAS
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // ── Tabela de faturas/cobranças ────────────────────────────────────────────
+  _db.prepare(`CREATE TABLE IF NOT EXISTS invoices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    amount REAL NOT NULL,
+    description TEXT,
+    status TEXT DEFAULT 'pendente',
+    due_date TEXT NOT NULL,
+    payment_method TEXT DEFAULT 'boleto',
+    paid_at TEXT,
+    paid_amount REAL,
+    pix_code TEXT,
+    boleto_url TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+  )`).run();
+
+  // ── Tabela de despesas ─────────────────────────────────────────────────────
+  _db.prepare(`CREATE TABLE IF NOT EXISTS expenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL,
+    subcategory TEXT,
+    description TEXT,
+    amount REAL NOT NULL,
+    date TEXT NOT NULL,
+    payment_method TEXT DEFAULT 'dinheiro',
+    recurring INTEGER DEFAULT 0,
+    receipt_url TEXT,
+    created_by INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+  )`).run();
+
+  // ── Tabela de transações financeiras ───────────────────────────────────────
+  _db.prepare(`CREATE TABLE IF NOT EXISTS financial_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT,
+    amount REAL NOT NULL,
+    date TEXT NOT NULL,
+    related_id INTEGER,
+    related_type TEXT,
+    payment_method TEXT,
+    status TEXT DEFAULT 'completed',
+    created_by INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+  )`).run();
+
   // ── Seed default admin ───────────────────────────────────────────────────
   const a = _db.prepare("SELECT COUNT(*) as c FROM users WHERE role='admin'").get();
   if (!a || a.c === 0) {

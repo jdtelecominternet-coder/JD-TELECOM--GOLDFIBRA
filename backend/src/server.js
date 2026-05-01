@@ -180,6 +180,7 @@ async function start() {
   app.use('/api/provisioning', require('./routes/provisioning'));
   app.use('/api/quality-control', require('./routes/qualityControl'));
   app.use('/api/face-auth', require('./routes/faceAuth'));
+  app.use('/api/financial', require('./routes/financial'));
 
   app.get('/api/health', (req, res) => res.json({ status: 'OK', system: 'SysFlowCloudi' }));
 
