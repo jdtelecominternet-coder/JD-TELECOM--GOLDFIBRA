@@ -76,7 +76,7 @@ export default function Users() {
   const [saving, setSaving] = useState(false);
   const [globalPermsTab, setGlobalPermsTab] = useState("vendedor");
   const [globalPerms, setGlobalPerms] = useState(null);
-  const [deleteModal, setDeleteModal] = useState(null); // { id, name, jd_id }
+  const [deleteModal, setDeleteModal] = useState(null); // { id, name, id }
   const [adminAuthModal, setAdminAuthModal] = useState(null); // user to edit after auth
   const [adminAuthPw, setAdminAuthPw] = useState('');
   const [adminAuthError, setAdminAuthError] = useState('');
@@ -186,7 +186,7 @@ export default function Users() {
     try {
       if (modal === 'create') {
         const r = await api.post('/users', form);
-        toast.success(`Usuário criado! ID: ${r.data.jd_id} | Senha: ${form.password || 'jd1234'}`);
+        toast.success(`Usuário criado! ID: ${r.data.jd_id} | Senha: ${form.password || 'id1234'}`);
       } else {
         await api.put(`/users/${modal.id}`, { name: form.name, role: form.role, active: form.active, ...(form.password ? { password: form.password } : {}) });
         toast.success(form.password ? 'Usuário atualizado e senha redefinida!' : 'Atualizado!');
@@ -382,7 +382,7 @@ export default function Users() {
                           </div>
                         </div>
                       </td>
-                      <td className="table-cell font-mono font-bold" style={{ color: 'var(--accent)' }}>ID{u.jd_id?.replace(/^JD/i, '')}</td>
+                      <td className="table-cell font-mono font-bold" style={{ color: 'var(--accent)' }}>ID{u.jd_id?.replace(/^ID/i, '')}</td>
                       <td className="table-cell">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border"
                           style={{ color: 'var(--accent)', borderColor: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 15%, transparent)' }}>
@@ -408,7 +408,7 @@ export default function Users() {
                               {u.active ? <UserX className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                             </button>
                           )}
-                          {u.jd_id !== '000001' && u.jd_id !== 'JD000001' && u.role === 'tecnico' && (
+                          {u.jd_id !== '000001' && u.jd_id !== 'ID000001' && u.role === 'tecnico' && (
                             <button onClick={() => resetTechOS(u)} className="p-1.5 rounded-lg" style={{ color: '#f59e0b' }} title="Zerar OS e valores do técnico">
                               <RotateCcw className="w-4 h-4" />
                             </button>
@@ -420,7 +420,7 @@ export default function Users() {
                             </button>
                           )}
                           {/* Ícone de cadeado para admin principal */}
-                          {(u.jd_id === '000001' || u.jd_id === 'JD000001') && (
+                          {(u.jd_id === '000001' || u.jd_id === 'ID000001') && (
                             <span title="Administrador Principal protegido" style={{ fontSize: 16 }}>🔒</span>
                           )}
                         </div>

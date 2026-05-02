@@ -400,7 +400,7 @@ export default function Layout() {
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
-              <p className="text-xs opacity-60 font-mono">ID: {user?.jd_id?.replace(/^JD/i, '')}</p>
+              <p className="text-xs opacity-60 font-mono">ID: {user?.jd_id?.replace(/^ID/i, '')}</p>
             </div>
           )}
         </NavLink>

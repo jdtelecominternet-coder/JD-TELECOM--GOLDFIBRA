@@ -54,7 +54,7 @@ export default function Login() {
     if (!password) return toast.error('Digite sua senha');
     setLoading(true);
     try {
-      await login('JD' + nums, password);
+      await login('ID' + nums, password);
       nav('/');
     } catch (err) {
       toast.error(err.response?.data?.error || 'ID ou senha inválidos');

@@ -1,0 +1,7 @@
+cd /root/JD-TELECOM--GOLDFIBRA 
+git fetch origin 
+git reset --hard origin/main 
+cd frontend 
+node node_modules/vite/bin/vite.js build 
+cp -r dist/* /var/www/goldfibra/ 
+echo 'DEPLOY CONCLUIDO!' 

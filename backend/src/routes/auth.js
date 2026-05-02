@@ -7,10 +7,10 @@ const { JWT_SECRET, authMiddleware } = require('../middleware/auth');
 
 router.post('/login', (req, res) => {
   const db = getDb();
-  const { jd_id, password } = req.body;
-  if (!jd_id || !password) return res.status(400).json({ error: 'ID e senha obrigatórios' });
+  const { id, password } = req.body;
+  if (!id || !password) return res.status(400).json({ error: 'ID e senha obrigatórios' });
 
-  const user = db.prepare('SELECT * FROM users WHERE jd_id = ? AND active = 1').get(jd_id.toUpperCase().trim());
+  const user = db.prepare('SELECT * FROM users WHERE id = ? AND active = 1').get(id.toUpperCase().trim());
   if (!user) return res.status(401).json({ error: 'ID ou senha inválidos' });
 
   const pw = db.prepare('SELECT hash FROM passwords WHERE user_id = ?').get(user.id);
@@ -25,7 +25,7 @@ router.post('/login', (req, res) => {
   }
 
   const token = jwt.sign(
-    { id: user.id, jd_id: user.jd_id, name: user.name, role: user.role },
+    { id: user.id, id: user.id, name: user.name, role: user.role },
     JWT_SECRET,
     { expiresIn: '30d' }
   );
@@ -38,7 +38,7 @@ router.post('/login', (req, res) => {
 
   res.json({
     token,
-    user: { id: user.id, jd_id: user.jd_id, name: user.name, role: user.role, photo_url: user.photo_url, permissions }
+    user: { id: user.id, id: user.id, name: user.name, role: user.role, photo_url: user.photo_url, permissions }
   });
 });
 

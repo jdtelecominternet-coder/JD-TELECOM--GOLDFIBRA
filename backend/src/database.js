@@ -88,7 +88,7 @@ async function initDatabase() {
 
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      jd_id TEXT UNIQUE NOT NULL,
+      id TEXT UNIQUE NOT NULL,
       name TEXT NOT NULL,
       role TEXT NOT NULL,
       email TEXT,
@@ -490,9 +490,9 @@ async function initDatabase() {
   const a = _db.prepare("SELECT COUNT(*) as c FROM users WHERE role='admin'").get();
   if (!a || a.c === 0) {
     const hash = bcrypt.hashSync('admin123', 10);
-    const info = _db.prepare("INSERT INTO users (jd_id, name, role) VALUES (?, ?, ?)").run('JD000001', 'Administrador', 'admin');
+    const info = _db.prepare("INSERT INTO users (id, name, role) VALUES (?, ?, ?)").run('ID000001', 'Administrador', 'admin');
     _db.prepare("INSERT INTO passwords (user_id, hash) VALUES (?, ?)").run(info.lastInsertRowid, hash);
-    console.log('Admin criado: ID=JD000001 / Senha=admin123');
+    console.log('Admin criado: ID=ID000001 / Senha=admin123');
   }
 
   return _db;
